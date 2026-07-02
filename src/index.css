@@ -1,0 +1,22 @@
+
+@import url('https://cdn.jsdelivr.net/font-iropke-batang/1.2/font-iropke-batang.css');
+
+@import "tailwindcss";
+
+/* 눈누에서 긁어온 영화 자막 폰트! */
+@font-face {
+    font-family: 'JoseonGulim';
+    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_20-04@1.0/ChosunGu.woff') format('woff');
+    font-weight: normal;
+    font-display: swap;
+}
+
+
+
+@font-face {
+    font-family: 'Hangyore';
+    src: url('//cdn.jsdelivr.net/korean-webfonts/1/corps/hani/Hankc/Hankc.woff2') format('woff2'),
+         url('//cdn.jsdelivr.net/korean-webfonts/1/corps/hani/Hankc/Hankc.woff') format('woff');
+    font-weight: 400;
+    font-display: swap;
+}
