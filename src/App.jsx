@@ -652,6 +652,10 @@ export default function GifMakerApp() {
                     backgroundColor: hasBackground ? bgColor : 'transparent',
                     padding: hasBackground ? '5px 10px' : '0px',
                     borderRadius: '4px'
+                    // 💡 [아이폰 억까 방지 3종 세트 추가!]
+                    userSelect: 'none',         // "텍스트 복사/블록 지정 금지!"
+                    WebkitUserSelect: 'none',   // "아이폰(사파리) 특별 텍스트 선택 금지!"
+                    touchAction: 'none',        // "드래그할 때 화면 스크롤 금지!"
                   }}
                 >
                   {text}
