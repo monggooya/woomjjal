@@ -604,12 +604,22 @@ export default function GifMakerApp() {
                         transformOrigin: 'center'
                       }}
                     >
-                      {/* 💡 [수술] 알맹이 영상: 색상 보정(filter)만 전담! */}
+                      {/* 💡 [특효약 투여!] 비디오 알맹이 */}
                       <video 
-                        src={selectedMedia.url} autoPlay loop muted 
+                        src={selectedMedia.url} autoPlay loop muted playsInline 
                         style={{ 
                           width: '100%', height: '100%', objectFit: 'contain',
-                          filter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast || 100}%) brightness(${selectedMedia.brightness || 100}%) saturate(${selectedMedia.saturate || 100}%)`
+                          
+                          // 1. 일반 브라우저용 필터
+                          filter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast || 100}%) brightness(${selectedMedia.brightness || 100}%) saturate(${selectedMedia.saturate || 100}%)`,
+                          
+                          // 2. 🍎 아이폰 징징이 전용 필터 (Webkit)
+                          WebkitFilter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast || 100}%) brightness(${selectedMedia.brightness || 100}%) saturate(${selectedMedia.saturate || 100}%)`,
+                          
+                          // 3. 🚀 GPU 강제 기상 채찍질! (하드웨어 가속)
+                          transform: 'translateZ(0)',
+                          WebkitTransform: 'translateZ(0)',
+                          willChange: 'filter'
                         }}
                       />
                     </div>
@@ -623,12 +633,22 @@ export default function GifMakerApp() {
                         transformOrigin: 'center'
                       }}
                     >
-                      {/* 💡 [수술] 알맹이 사진: 색상 보정(filter)만 전담! */}
+                      {/* 💡 [특효약 투여!] 사진 알맹이 */}
                       <img 
-                        src={selectedMedia.url} draggable={false} decoding="async"
+                        src={selectedMedia.url} draggable={false} 
                         style={{ 
                           width: '100%', height: '100%', objectFit: 'contain',
-                          filter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast || 100}%) brightness(${selectedMedia.brightness || 100}%) saturate(${selectedMedia.saturate || 100}%)`
+                          
+                          // 1. 일반 브라우저용 필터
+                          filter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast || 100}%) brightness(${selectedMedia.brightness || 100}%) saturate(${selectedMedia.saturate || 100}%)`,
+                          
+                          // 2. 🍎 아이폰 징징이 전용 필터 (Webkit)
+                          WebkitFilter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast || 100}%) brightness(${selectedMedia.brightness || 100}%) saturate(${selectedMedia.saturate || 100}%)`,
+                          
+                          // 3. 🚀 GPU 강제 기상 채찍질! (하드웨어 가속)
+                          transform: 'translateZ(0)',
+                          WebkitTransform: 'translateZ(0)',
+                          willChange: 'filter'
                         }} 
                       />
                     </div>
