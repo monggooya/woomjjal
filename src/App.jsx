@@ -527,24 +527,30 @@ export default function GifMakerApp() {
             }}
             onTouchMove={(e) => {
               if (e.touches.length === 2 && selectedMedia) {
-                // ✌️ 두 손가락 거리에 맞춰서 사진 비율 스무스하게 변경
+                // ✌️ 두 손가락 줌인/줌아웃
                 const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
                 const startDist = previewRef.current.pinchStartDist || dist;
                 const startScale = previewRef.current.pinchStartScale || 1;
                 
                 let newScale = startScale * (dist / startDist);
-                newScale = Math.max(0.1, Math.min(newScale, 5)); // 0.1배 ~ 5배 사이로 리밋 걸기
+                newScale = Math.max(0.1, Math.min(newScale, 5));
                 
-                const updatedMedia = { ...selectedMedia, scale: Number(newScale.toFixed(2)) };
-                setSelectedMedia(updatedMedia);
-                setImages(prev => prev.map(img => img.id === selectedMedia.id ? updatedMedia : img));
+                // 🎯 [다이어트 성공!] 무거운 setImages 빼고, 당장 눈에 보이는 사진만 가볍게 키우기!
+                setSelectedMedia({ ...selectedMedia, scale: Number(newScale.toFixed(2)) });
+                
               } else if (e.touches.length === 1) {
-                // 👆 한 손가락 드래그로 위치 이동
+                // 👆 한 손가락 이동
                 handleMouseMove(e);
               }
             }}
             onTouchEnd={(e) => {
               previewRef.current.pinchStartDist = null;
+              
+              // 🎯 [다이어트 성공!] 손가락 뗄 때 딱 1번만 전체 사진첩(images)에 저장!
+              if (selectedMedia) {
+                setImages(prev => prev.map(img => img.id === selectedMedia.id ? selectedMedia : img));
+              }
+              
               handleMouseUp();
             }}
           >
