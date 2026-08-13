@@ -652,12 +652,10 @@ export default function GifMakerApp() {
                     textShadow: hasShadow ? '2px 2px 4px rgba(0,0,0,0.5)' : 'none',
                     backgroundColor: hasBackground ? bgColor : 'transparent',
                     padding: hasBackground ? '5px 10px' : '0px',
-                    borderRadius: '4px'
-                    // 🛡️ 기존 방패 3개 (저번에 넣었던 거 그대로 유지)
+                    borderRadius: '4px',
                     userSelect: 'none',
                     WebkitUserSelect: 'none', 
                     touchAction: 'none',
-                    // 🛡️ 얄미운 아이폰 억까 차단용 새 방패 2개 (여기에 쏙 추가!)
                     WebkitUserDrag: 'none',
                     WebkitTouchCallout: 'none',
                   }}
