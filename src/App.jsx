@@ -499,54 +499,93 @@ export default function GifMakerApp() {
 
         {/* 📺 메인 미리보기 박스 영역 (이제 style에서 가로세로를 주도적으로 조절!) */}
         <div className="w-full flex items-start justify-start p-4 bg-gray-50 rounded-xl border border-gray-200 overflow-auto">
-          {/* 🔍 여기서부터 드래그 시작! */}
+          
           <div 
             ref={previewRef}
             onMouseDown={handleImgMouseDown}
-            
-            // 💡 [복구 완료!] 마우스 떼거나 밖으로 나가면 드래그 멈추는 브레이크들 다시 달았어!
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
-            onTouchMove={handleMouseMove}
-            onTouchEnd={handleMouseUp}
             
+            // 💡 [해결 2] 모바일에서 사진 터치 시 앱 화면 스크롤 원천 차단! (touchAction: 'none')
+            className="relative bg-gray-800 rounded-xl overflow-hidden shadow-inner max-w-full z-0"
+            style={{ width: `${previewSize.width}px`, height: `${previewSize.height}px`, touchAction: 'none' }} 
+            
+            // 💡 [해결 3] 두 손가락 핀치 줌(확대/축소) 로직 완벽 구현!
             onTouchStart={(e) => {
               if (e.target.closest('button') || e.target.cursor) return;
-              handleImgMouseDown(e);
+              
+              if (e.touches.length === 2) {
+                // ✌️ 두 손가락일 때: 확대/축소 모드 돌입
+                const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                previewRef.current.pinchStartDist = dist;
+                previewRef.current.pinchStartScale = selectedMedia?.scale || 1;
+              } else if (e.touches.length === 1) {
+                // 👆 한 손가락일 때: 기존 드래그(이동) 모드
+                handleImgMouseDown(e);
+              }
             }}
-            className="relative bg-gray-800 rounded-xl overflow-hidden shadow-inner max-w-full z-0"
-            style={{ width: `${previewSize.width}px`, height: `${previewSize.height}px` }} 
+            onTouchMove={(e) => {
+              if (e.touches.length === 2 && selectedMedia) {
+                // ✌️ 두 손가락 거리에 맞춰서 사진 비율 스무스하게 변경
+                const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                const startDist = previewRef.current.pinchStartDist || dist;
+                const startScale = previewRef.current.pinchStartScale || 1;
+                
+                let newScale = startScale * (dist / startDist);
+                newScale = Math.max(0.1, Math.min(newScale, 5)); // 0.1배 ~ 5배 사이로 리밋 걸기
+                
+                const updatedMedia = { ...selectedMedia, scale: Number(newScale.toFixed(2)) };
+                setSelectedMedia(updatedMedia);
+                setImages(prev => prev.map(img => img.id === selectedMedia.id ? updatedMedia : img));
+              } else if (e.touches.length === 1) {
+                // 👆 한 손가락 드래그로 위치 이동
+                handleMouseMove(e);
+              }
+            }}
+            onTouchEnd={(e) => {
+              previewRef.current.pinchStartDist = null;
+              handleMouseUp();
+            }}
           >
             {selectedMedia ? (
               <>
                 {/* 노이즈 레이어 */}
                 <div className="absolute inset-0 pointer-events-none z-10 opacity-25" style={{ display: selectedMedia.noise > 0 ? 'block' : 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`, filter: `contrast(${100 + selectedMedia.noise * 8}%)` }} />
 
-                <div className="w-full h-full overflow-hidden flex items-start justify-start cursor-grab active:cursor-grabbing">
+                <div className="w-full h-full overflow-hidden flex items-start justify-start relative">
                   {selectedMedia.type === 'video' ? (
                     <video 
                       src={selectedMedia.url} autoPlay loop muted 
-                      // 💡 [복구 완료!] pointer-events-none을 다시 넣어서 끈적한 기본 드래그 방지!
-                      className="absolute max-w-none max-h-none pointer-events-none"
+                      className="absolute pointer-events-none"
+                      // 💡 [해결 1] 어떤 거대 사진이 와도 무조건 액자(100%)에 쏙 들어가게 절대규격 강제 적용!
                       style={{ 
+                        width: '100%', 
+                        height: '100%', 
+                        objectFit: 'contain',
                         left: 0, 
-                        top: 0, 
+                        top: 0,
                         transform: `translate(${selectedMedia.imgPos.x}px, ${selectedMedia.imgPos.y}px) scale(${selectedMedia.scale})`, 
-                        filter: `blur(${selectedMedia.blur}px) contrast(${selectedMedia.contrast}%) brightness(${selectedMedia.brightness}%) saturate(${selectedMedia.saturate}%)` 
+                        filter: `blur(${selectedMedia.blur}px) contrast(${selectedMedia.contrast}%) brightness(${selectedMedia.brightness}%) saturate(${selectedMedia.saturate}%)`,
+                        transformOrigin: 'center'
                       }}
                     />
                   ) : (
                     <img 
                       src={selectedMedia.url} 
-                      draggable={false} // 💡 [추가 방패!] 브라우저가 강제로 이미지 드래그하는 현상 원천 차단!
-                      // 💡 [복구 완료!] pointer-events-none을 다시 넣어서 끈적한 기본 드래그 방지!
-                      className="absolute max-w-none max-h-none pointer-events-none"
+                      draggable={false} 
+                      decoding="async"
+                      className="absolute pointer-events-none"
+                      // 💡 [해결 1] 어떤 거대 사진이 와도 무조건 액자(100%)에 쏙 들어가게 절대규격 강제 적용!
                       style={{ 
+                        width: '100%', 
+                        height: '100%', 
+                        objectFit: 'contain',
                         left: 0, 
-                        top: 0, 
+                        top: 0,
                         transform: `translate(${selectedMedia.imgPos.x}px, ${selectedMedia.imgPos.y}px) scale(${selectedMedia.scale})`, 
-                        filter: `blur(${selectedMedia.blur}px) contrast(${selectedMedia.contrast}%) brightness(${selectedMedia.brightness}%) saturate(${selectedMedia.saturate}%)` 
+                        filter: `blur(${selectedMedia.blur}px) contrast(${selectedMedia.contrast}%) brightness(${selectedMedia.brightness}%) saturate(${selectedMedia.saturate}%)`,
+                        transformOrigin: 'center'
                       }} 
                     />
                   )}
