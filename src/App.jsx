@@ -40,6 +40,9 @@ export default function GifMakerApp() {
   const [imgDragStart, setImgDragStart] = useState({ x: 0, y: 0 });
   
   const dragItem = useRef(null);
+  // 💡 드래그를 위한 꾹~ 누르기 판독기 추가!
+  const pressTimer = useRef(null);
+  const isDragging = useRef(false);
   const dragOverItem = useRef(null);
   const [batchTime, setBatchTime] = useState(0.5);
 
@@ -456,7 +459,6 @@ export default function GifMakerApp() {
             </div>
             
             {/* 기존 썸네일 리스트 */}
-            {/* 3) 썸네일 리스트 부분 */}
             <div className="flex gap-4 overflow-x-auto py-2 px-1">
               {images.map((img, index) => (
                 <div key={img.id} className="flex flex-col items-center gap-2 flex-shrink-0">
@@ -476,22 +478,48 @@ export default function GifMakerApp() {
                     onDragEnd={handleSort}
                     onDragOver={(e) => e.preventDefault()}
                     
-                    // 📱 💡 [추가 2] 아이폰(터치스크린) 전용 순서 바꾸기 로직!!
+                    // 📱 [아이폰 터치용: 꾹~ 누르기 완벽 구현!]
                     onTouchStart={() => {
-                      dragItem.current = index; // 터치 시작한 썸네일 번호 기억!
+                      dragItem.current = index;
+                      dragOverItem.current = index;
+                      isDragging.current = false; // 드래그 모드 초기화
+
+                      // 💡 [핵심] 0.3초(300ms) 동안 손을 떼지 않아야 '드래그 모드' 발동!
+                      pressTimer.current = setTimeout(() => {
+                        isDragging.current = true;
+                      }, 300);
                     }}
+                    
                     onTouchMove={(e) => {
-                      // 손가락이 가리키는 화면 좌표 아래에 있는 요소(썸네일) 찾기!
+                      // 💡 0.3초가 지나기 전에 폰을 문질렀다? -> 이건 '썸네일 스크롤'이니까 드래그 취소!
+                      if (!isDragging.current) {
+                        clearTimeout(pressTimer.current); 
+                        return; 
+                      }
+                      
+                      // 💡 0.3초를 꾹~ 채운 진짜 '드래그 모드'일 때만 순서 추적!
                       const touch = e.touches[0];
                       const target = document.elementFromPoint(touch.clientX, touch.clientY);
-                      const dropZone = target?.closest('[data-index]'); // 번호표(data-index)를 가진 요소 확인
+                      const dropZone = target?.closest('[data-index]'); 
                       
                       if (dropZone) {
-                        dragOverItem.current = Number(dropZone.getAttribute('data-index')); // 도착 지점 갱신!
+                        dragOverItem.current = Number(dropZone.getAttribute('data-index')); 
                       }
                     }}
+                    
                     onTouchEnd={() => {
-                      handleSort(); // 손가락 딱 떼면 순서 변경 함수 실행!
+                      // 손을 떼는 순간 무조건 타이머 정지!
+                      clearTimeout(pressTimer.current);
+
+                      // 💡 진짜로 '꾹~ 눌러서' 드래그를 했고, 자리까지 남의 집으로 이동했을 때만 순서 변경!
+                      if (isDragging.current && dragItem.current !== dragOverItem.current) {
+                        handleSort();
+                      }
+                      
+                      // 🧹 다시 평화로운 상태로 초기화
+                      isDragging.current = false;
+                      dragItem.current = null;
+                      dragOverItem.current = null;
                     }}
 
                     className="relative w-24 h-24 rounded-lg overflow-hidden border-2 border-gray-200 shadow-md cursor-pointer active:cursor-grabbing hover:border-blue-400 transition-colors"
