@@ -595,52 +595,39 @@ export default function GifMakerApp() {
                 <div 
                   draggable={false}
                   // 💡 [버그 해결 1] 마우스/터치 시작할 때 '초기 자막 위치'와 '초기 손가락 위치' 기억!
-                  onMouseDown={(e) => {
+                  // 💡 [수정됨] 쌤의 textPos 변수를 직접 움직이는 완벽한 포인터 로직!
+                  onPointerDown={(e) => {
                     e.stopPropagation();
+                    e.target.setPointerCapture(e.pointerId);
                     previewRef.current.isTextDragging = true;
                     previewRef.current.startX = e.clientX;
                     previewRef.current.startY = e.clientY;
-                    // (혹시 자막 위치 변수 이름이 textPos가 아니라면 쌤 코드에 맞게 살짝 바꿔줘!)
-                    previewRef.current.initTextX = selectedMedia.textPos?.x || 0;
-                    previewRef.current.initTextY = selectedMedia.textPos?.y || 0;
+                    
+                    // 🎯 내가 엄한 selectedMedia 찾던 걸 쌤의 진짜 textPos로 바꿨어!
+                    previewRef.current.initTextX = textPos.x || 0; 
+                    previewRef.current.initTextY = textPos.y || 0;
                   }}
-                  onTouchStart={(e) => {
-                    e.stopPropagation();
-                    previewRef.current.isTextDragging = true;
-                    previewRef.current.startX = e.touches[0].clientX;
-                    previewRef.current.startY = e.touches[0].clientY;
-                    previewRef.current.initTextX = selectedMedia.textPos?.x || 0;
-                    previewRef.current.initTextY = selectedMedia.textPos?.y || 0;
-                  }}
-                  onMouseMove={(e) => {
+                  onPointerMove={(e) => {
                     e.stopPropagation();
                     if (!previewRef.current.isTextDragging) return;
                     const deltaX = e.clientX - previewRef.current.startX;
                     const deltaY = e.clientY - previewRef.current.startY;
                     
-                    const updatedMedia = { 
-                      ...selectedMedia, 
-                      textPos: { x: previewRef.current.initTextX + deltaX, y: previewRef.current.initTextY + deltaY } 
-                    };
-                    setSelectedMedia(updatedMedia);
-                    setImages(prev => prev.map(img => img.id === selectedMedia.id ? updatedMedia : img));
+                    // 🎯 여기가 하이라이트! setSelectedMedia가 아니라 쌤의 setTextPos를 호출!
+                    setTextPos({ 
+                      x: previewRef.current.initTextX + deltaX, 
+                      y: previewRef.current.initTextY + deltaY 
+                    });
                   }}
-                  onTouchMove={(e) => {
+                  onPointerUp={(e) => {
                     e.stopPropagation();
-                    if (!previewRef.current.isTextDragging) return;
-                    const deltaX = e.touches[0].clientX - previewRef.current.startX;
-                    const deltaY = e.touches[0].clientY - previewRef.current.startY;
-                    
-                    const updatedMedia = { 
-                      ...selectedMedia, 
-                      textPos: { x: previewRef.current.initTextX + deltaX, y: previewRef.current.initTextY + deltaY } 
-                    };
-                    setSelectedMedia(updatedMedia);
-                    setImages(prev => prev.map(img => img.id === selectedMedia.id ? updatedMedia : img));
+                    e.target.releasePointerCapture(e.pointerId);
+                    previewRef.current.isTextDragging = false;
                   }}
-                  onMouseUp={(e) => { e.stopPropagation(); previewRef.current.isTextDragging = false; }}
-                  onMouseLeave={(e) => { e.stopPropagation(); previewRef.current.isTextDragging = false; }}
-                  onTouchEnd={(e) => { e.stopPropagation(); previewRef.current.isTextDragging = false; }}
+                  onPointerCancel={(e) => {
+                    e.stopPropagation();
+                    previewRef.current.isTextDragging = false;
+                  }}
                   className="absolute cursor-move transition-transform duration-75 active:scale-105 z-20 select-none touch-none"
                   style={{ 
                     top: textPos.y, left: textPos.x, color: textColor,
