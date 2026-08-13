@@ -653,11 +653,13 @@ export default function GifMakerApp() {
                     backgroundColor: hasBackground ? bgColor : 'transparent',
                     padding: hasBackground ? '5px 10px' : '0px',
                     borderRadius: '4px'
-                    // 💡 [해결 2] 아이폰 오지랖 원천 차단 방패 4종 세트!
-                    WebkitUserDrag: 'none',     // 아이폰에서 꾹 눌러서 '살짝 커지는' 고유 드래그 기능 차단! (이게 핵심!)
-                    WebkitTouchCallout: 'none', // 꾹 눌렀을 때 팝업 메뉴(복사/공유) 뜨는 거 컷!
-                    userSelect: 'none',         // 텍스트 블록 지정(돋보기) 컷!
-                    touchAction: 'none',        // 드래그할 때 화면 스크롤 컷!
+                    // 🛡️ 기존 방패 3개 (저번에 넣었던 거 그대로 유지)
+                    userSelect: 'none',
+                    WebkitUserSelect: 'none', 
+                    touchAction: 'none',
+                    // 🛡️ 얄미운 아이폰 억까 차단용 새 방패 2개 (여기에 쏙 추가!)
+                    WebkitUserDrag: 'none',
+                    WebkitTouchCallout: 'none',
                   }}
                 >
                   {text}
