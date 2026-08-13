@@ -97,6 +97,11 @@ export default function GifMakerApp() {
     }
     const _images = images.map(img => ({ ...img, duration: newTime }));
     setImages(_images);
+
+    // 💡 [1번 버그 해결] 화면에 띄워진 '현재 사진'의 시간 상태도 같이 최신화!
+    if (selectedMedia) {
+      setSelectedMedia(prev => ({ ...prev, duration: newTime }));
+    }
   };
 
   // 📐 액자 틀(비율 크롭) 우측 하단 핸들 마우스 다운
@@ -789,7 +794,7 @@ export default function GifMakerApp() {
             onChange={() => setExportFormat('gif')}
             className="hidden" 
           />
-          🖼️ GIF (움짤)
+          🖼️ 움짤(GIF)
         </label>
 
         <label className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold cursor-pointer transition ${exportFormat === 'video' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
@@ -801,7 +806,7 @@ export default function GifMakerApp() {
             onChange={() => setExportFormat('video')}
             className="hidden" 
           />
-          🎬 동영상 (WebM/MP4)
+          🎬 동영상(WebM/MP4)
         </label>
       </div>
 
@@ -819,7 +824,7 @@ export default function GifMakerApp() {
                 : 'bg-blue-500 text-white hover:bg-blue-600 active:scale-95'
             }`}
           >
-            {isPlaying ? '🍿 미리보기 재생 중...' : '▶️ 굽기 전 전체 미리보기'}
+            {isPlaying ? '🍿 미리보기 재생 중...' : '▶️ 미리보기'}
           </button>
         </div>
 
@@ -828,7 +833,7 @@ export default function GifMakerApp() {
       <button 
         onClick={handleBakeGif}
         className="mt-10 px-10 py-4 bg-black text-white text-xl font-bold rounded-full shadow-2xl hover:bg-gray-800 transform transition hover:scale-105">
-        🔥 움짤 굽기 & 저장
+        저장
       </button>
     </div>
   );
