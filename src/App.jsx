@@ -42,7 +42,7 @@ export default function GifMakerApp() {
   const dragItem = useRef(null);
   // 💡 드래그를 위한 꾹~ 누르기 판독기 추가!
   const pressTimer = useRef(null);
-  const isDragging = useRef(false);
+  const isSortDragging = useRef(false); // 👈 "순서 바꾸기 전용"이라는 뜻으로 이름 변경! 
   const dragOverItem = useRef(null);
   const [batchTime, setBatchTime] = useState(0.5);
 
