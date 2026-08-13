@@ -593,6 +593,7 @@ export default function GifMakerApp() {
                 
                 {/* 3. 자막 레이어 */}
                 <div 
+                  draggable={false}
                   // 💡 [버그 해결 1] 마우스/터치 시작할 때 '초기 자막 위치'와 '초기 손가락 위치' 기억!
                   onMouseDown={(e) => {
                     e.stopPropagation();
@@ -652,10 +653,11 @@ export default function GifMakerApp() {
                     backgroundColor: hasBackground ? bgColor : 'transparent',
                     padding: hasBackground ? '5px 10px' : '0px',
                     borderRadius: '4px'
-                    // 💡 [아이폰 억까 방지 3종 세트 추가!]
-                    userSelect: 'none',         // "텍스트 복사/블록 지정 금지!"
-                    WebkitUserSelect: 'none',   // "아이폰(사파리) 특별 텍스트 선택 금지!"
-                    touchAction: 'none',        // "드래그할 때 화면 스크롤 금지!"
+                    // 💡 [해결 2] 아이폰 오지랖 원천 차단 방패 4종 세트!
+                    WebkitUserDrag: 'none',     // 아이폰에서 꾹 눌러서 '살짝 커지는' 고유 드래그 기능 차단! (이게 핵심!)
+                    WebkitTouchCallout: 'none', // 꾹 눌렀을 때 팝업 메뉴(복사/공유) 뜨는 거 컷!
+                    userSelect: 'none',         // 텍스트 블록 지정(돋보기) 컷!
+                    touchAction: 'none',        // 드래그할 때 화면 스크롤 컷!
                   }}
                 >
                   {text}
