@@ -482,22 +482,21 @@ export default function GifMakerApp() {
                     onTouchStart={() => {
                       dragItem.current = index;
                       dragOverItem.current = index;
-                      isDragging.current = false; // 드래그 모드 초기화
+                      isSortDragging.current = false; // 👈 이름 바꿈!
 
-                      // 💡 [핵심] 0.3초(300ms) 동안 손을 떼지 않아야 '드래그 모드' 발동!
+                      // 0.3초(300ms) 타이머
                       pressTimer.current = setTimeout(() => {
-                        isDragging.current = true;
+                        isSortDragging.current = true; // 👈 이름 바꿈!
                       }, 300);
                     }}
                     
                     onTouchMove={(e) => {
-                      // 💡 0.3초가 지나기 전에 폰을 문질렀다? -> 이건 '썸네일 스크롤'이니까 드래그 취소!
-                      if (!isDragging.current) {
+                      // 타이머 다 되기 전이면 스크롤로 인정!
+                      if (!isSortDragging.current) { // 👈 이름 바꿈!
                         clearTimeout(pressTimer.current); 
                         return; 
                       }
                       
-                      // 💡 0.3초를 꾹~ 채운 진짜 '드래그 모드'일 때만 순서 추적!
                       const touch = e.touches[0];
                       const target = document.elementFromPoint(touch.clientX, touch.clientY);
                       const dropZone = target?.closest('[data-index]'); 
@@ -508,16 +507,15 @@ export default function GifMakerApp() {
                     }}
                     
                     onTouchEnd={() => {
-                      // 손을 떼는 순간 무조건 타이머 정지!
                       clearTimeout(pressTimer.current);
 
-                      // 💡 진짜로 '꾹~ 눌러서' 드래그를 했고, 자리까지 남의 집으로 이동했을 때만 순서 변경!
-                      if (isDragging.current && dragItem.current !== dragOverItem.current) {
+                      // 드래그를 진짜 했고, 남의 집으로 이동했을 때만!
+                      if (isSortDragging.current && dragItem.current !== dragOverItem.current) { // 👈 이름 바꿈!
                         handleSort();
                       }
                       
-                      // 🧹 다시 평화로운 상태로 초기화
-                      isDragging.current = false;
+                      // 초기화
+                      isSortDragging.current = false; // 👈 이름 바꿈!
                       dragItem.current = null;
                       dragOverItem.current = null;
                     }}
