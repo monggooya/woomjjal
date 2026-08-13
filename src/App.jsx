@@ -471,9 +471,33 @@ export default function GifMakerApp() {
                     className="relative w-24 h-24 rounded-lg overflow-hidden border-2 border-gray-200 shadow-md cursor-pointer active:cursor-grabbing hover:border-blue-400 transition-colors"
                   >
                     {img.type === 'video' ? (
-                      <video src={img.url} className="w-full h-full object-cover" muted />
+                      <video 
+                        src={img.url} 
+                        className="w-full h-full object-cover" 
+                        muted 
+                        // 💡 [여기에 방패 추가!] 비디오 꾹 눌러서 튕기는 거 방지
+                        draggable={false}
+                        style={{
+                          pointerEvents: 'none',
+                          WebkitTouchCallout: 'none',
+                          WebkitUserDrag: 'none',
+                          userSelect: 'none'
+                        }}
+                      />
                     ) : (
-                      <img src={img.url} alt={`썸네일 ${index}`} className="w-full h-full object-cover" />
+                      <img 
+                        src={img.url} 
+                        alt={`썸네일 ${index}`} 
+                        className="w-full h-full object-cover" 
+                        // 💡 [여기에 방패 추가!] 이미지 꾹 눌러서 새 창 열리는 대참사 방지
+                        draggable={false}
+                        style={{
+                          pointerEvents: 'none',
+                          WebkitTouchCallout: 'none',
+                          WebkitUserDrag: 'none',
+                          userSelect: 'none'
+                        }}
+                      />
                     )}
                     <div className="absolute top-0 left-0 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded-br-md font-bold pointer-events-none">
                       {index + 1}
