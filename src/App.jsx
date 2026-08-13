@@ -593,8 +593,53 @@ export default function GifMakerApp() {
                 
                 {/* 3. 자막 레이어 */}
                 <div 
-                  onMouseDown={handleMouseDown}
-                  onTouchStart={handleMouseDown} 
+                  // 💡 [버그 해결 1] 마우스/터치 시작할 때 '초기 자막 위치'와 '초기 손가락 위치' 기억!
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    previewRef.current.isTextDragging = true;
+                    previewRef.current.startX = e.clientX;
+                    previewRef.current.startY = e.clientY;
+                    // (혹시 자막 위치 변수 이름이 textPos가 아니라면 쌤 코드에 맞게 살짝 바꿔줘!)
+                    previewRef.current.initTextX = selectedMedia.textPos?.x || 0;
+                    previewRef.current.initTextY = selectedMedia.textPos?.y || 0;
+                  }}
+                  onTouchStart={(e) => {
+                    e.stopPropagation();
+                    previewRef.current.isTextDragging = true;
+                    previewRef.current.startX = e.touches[0].clientX;
+                    previewRef.current.startY = e.touches[0].clientY;
+                    previewRef.current.initTextX = selectedMedia.textPos?.x || 0;
+                    previewRef.current.initTextY = selectedMedia.textPos?.y || 0;
+                  }}
+                  onMouseMove={(e) => {
+                    e.stopPropagation();
+                    if (!previewRef.current.isTextDragging) return;
+                    const deltaX = e.clientX - previewRef.current.startX;
+                    const deltaY = e.clientY - previewRef.current.startY;
+                    
+                    const updatedMedia = { 
+                      ...selectedMedia, 
+                      textPos: { x: previewRef.current.initTextX + deltaX, y: previewRef.current.initTextY + deltaY } 
+                    };
+                    setSelectedMedia(updatedMedia);
+                    setImages(prev => prev.map(img => img.id === selectedMedia.id ? updatedMedia : img));
+                  }}
+                  onTouchMove={(e) => {
+                    e.stopPropagation();
+                    if (!previewRef.current.isTextDragging) return;
+                    const deltaX = e.touches[0].clientX - previewRef.current.startX;
+                    const deltaY = e.touches[0].clientY - previewRef.current.startY;
+                    
+                    const updatedMedia = { 
+                      ...selectedMedia, 
+                      textPos: { x: previewRef.current.initTextX + deltaX, y: previewRef.current.initTextY + deltaY } 
+                    };
+                    setSelectedMedia(updatedMedia);
+                    setImages(prev => prev.map(img => img.id === selectedMedia.id ? updatedMedia : img));
+                  }}
+                  onMouseUp={(e) => { e.stopPropagation(); previewRef.current.isTextDragging = false; }}
+                  onMouseLeave={(e) => { e.stopPropagation(); previewRef.current.isTextDragging = false; }}
+                  onTouchEnd={(e) => { e.stopPropagation(); previewRef.current.isTextDragging = false; }}
                   className="absolute cursor-move transition-transform duration-75 active:scale-105 z-20 select-none touch-none"
                   style={{ 
                     top: textPos.y, left: textPos.x, color: textColor,
