@@ -614,7 +614,16 @@ export default function GifMakerApp() {
 
                 {/* 4. 세팅 조절바 패널 영역 */}
                 {selectedMedia && activeTab && (
-                  <div className={`absolute left-4 right-4 bg-black/80 backdrop-blur-md rounded-xl p-4 z-30 border border-white/10 flex flex-col gap-3 text-white text-xs max-h-40 overflow-y-auto shadow-2xl transition-all duration-300 ${isPanelTop ? 'top-4' : 'bottom-4'}`}>
+                  <div 
+                    // 💡 [버그 해결] 메뉴판 안에서의 터치/스크롤/마우스 움직임이 뒤쪽 사진으로 뚫고 나가는 걸 완벽 방어!
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                    onMouseMove={(e) => e.stopPropagation()}
+                    onTouchMove={(e) => e.stopPropagation()}
+                    onWheel={(e) => e.stopPropagation()}
+                    
+                    className={`absolute left-4 right-4 bg-black/80 backdrop-blur-md rounded-xl p-4 z-30 border border-white/10 flex flex-col gap-3 text-white text-xs max-h-40 overflow-y-auto shadow-2xl transition-all duration-300 ${isPanelTop ? 'top-4' : 'bottom-4'}`}
+                  >
                     <div className="flex justify-between items-center border-b border-white/10 pb-2">
                       <span className="font-bold text-purple-300">
                         {activeTab === 'scale' && '확대'}
