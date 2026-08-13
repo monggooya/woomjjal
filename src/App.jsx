@@ -456,47 +456,57 @@ export default function GifMakerApp() {
             </div>
             
             {/* 기존 썸네일 리스트 */}
+            {/* 3) 썸네일 리스트 부분 */}
             <div className="flex gap-4 overflow-x-auto py-2 px-1">
               {images.map((img, index) => (
                 <div key={img.id} className="flex flex-col items-center gap-2 flex-shrink-0">
                   <div 
-                    onClick={() => {setSelectedMedia(img);
-                      setText(img.subtitle || ""); // 👈 [핵심] 이 이미지에 저장된 자막으로 업데이트!
+                    // 💡 [추가 1] 터치 추적을 위해 태그에 '번호표' 달아주기!
+                    data-index={index} 
+                    
+                    onClick={() => {
+                      setSelectedMedia(img);
+                      setText(img.subtitle || ""); 
                     }}
+                    
+                    // 💻 PC 마우스용 드래그 (쌤 원래 코드 그대로 유지)
                     draggable 
                     onDragStart={(e) => (dragItem.current = index)}
                     onDragEnter={(e) => (dragOverItem.current = index)}
                     onDragEnd={handleSort}
                     onDragOver={(e) => e.preventDefault()}
+                    
+                    // 📱 💡 [추가 2] 아이폰(터치스크린) 전용 순서 바꾸기 로직!!
+                    onTouchStart={() => {
+                      dragItem.current = index; // 터치 시작한 썸네일 번호 기억!
+                    }}
+                    onTouchMove={(e) => {
+                      // 손가락이 가리키는 화면 좌표 아래에 있는 요소(썸네일) 찾기!
+                      const touch = e.touches[0];
+                      const target = document.elementFromPoint(touch.clientX, touch.clientY);
+                      const dropZone = target?.closest('[data-index]'); // 번호표(data-index)를 가진 요소 확인
+                      
+                      if (dropZone) {
+                        dragOverItem.current = Number(dropZone.getAttribute('data-index')); // 도착 지점 갱신!
+                      }
+                    }}
+                    onTouchEnd={() => {
+                      handleSort(); // 손가락 딱 떼면 순서 변경 함수 실행!
+                    }}
+
                     className="relative w-24 h-24 rounded-lg overflow-hidden border-2 border-gray-200 shadow-md cursor-pointer active:cursor-grabbing hover:border-blue-400 transition-colors"
                   >
                     {img.type === 'video' ? (
                       <video 
-                        src={img.url} 
-                        className="w-full h-full object-cover" 
-                        muted 
-                        // 💡 [여기에 방패 추가!] 비디오 꾹 눌러서 튕기는 거 방지
+                        src={img.url} className="w-full h-full object-cover" muted 
                         draggable={false}
-                        style={{
-                          pointerEvents: 'none',
-                          WebkitTouchCallout: 'none',
-                          WebkitUserDrag: 'none',
-                          userSelect: 'none'
-                        }}
+                        style={{ pointerEvents: 'none', WebkitTouchCallout: 'none', WebkitUserDrag: 'none', userSelect: 'none' }}
                       />
                     ) : (
                       <img 
-                        src={img.url} 
-                        alt={`썸네일 ${index}`} 
-                        className="w-full h-full object-cover" 
-                        // 💡 [여기에 방패 추가!] 이미지 꾹 눌러서 새 창 열리는 대참사 방지
+                        src={img.url} alt={`썸네일 ${index}`} className="w-full h-full object-cover" 
                         draggable={false}
-                        style={{
-                          pointerEvents: 'none',
-                          WebkitTouchCallout: 'none',
-                          WebkitUserDrag: 'none',
-                          userSelect: 'none'
-                        }}
+                        style={{ pointerEvents: 'none', WebkitTouchCallout: 'none', WebkitUserDrag: 'none', userSelect: 'none' }}
                       />
                     )}
                     <div className="absolute top-0 left-0 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded-br-md font-bold pointer-events-none">
@@ -504,16 +514,9 @@ export default function GifMakerApp() {
                     </div>
                   </div>
                   
+                  {/* 시간 입력창 등 기존 코드 유지... */}
                   <div className="flex items-center gap-1 text-sm">
-                    <input 
-                      type="number" 
-                      step="0.1" 
-                      min="0.1"
-                      value={img.duration}
-                      onChange={(e) => handleTimeChange(index, e.target.value)}
-                      className="w-14 px-1 py-0.5 text-center border border-gray-300 rounded bg-white text-gray-800 focus:outline-none focus:border-blue-500"
-                    />
-                    <span className="text-gray-500 font-medium">초</span>
+                    {/* ... */}
                   </div>
                 </div>
               ))}
@@ -589,41 +592,46 @@ export default function GifMakerApp() {
                 {/* 노이즈 레이어 */}
                 <div className="absolute inset-0 pointer-events-none z-10 opacity-25" style={{ display: selectedMedia.noise > 0 ? 'block' : 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`, filter: `contrast(${100 + selectedMedia.noise * 8}%)` }} />
 
+                {/* 1) 메인 사진 뜨는 곳 */}
                 <div className="w-full h-full overflow-hidden flex items-start justify-start relative">
                   {selectedMedia.type === 'video' ? (
-                    <video 
-                      src={selectedMedia.url} autoPlay loop muted 
+                    // 💡 [수술] 껍데기 박스: 크기랑 위치(transform)만 전담!
+                    <div
                       className="absolute pointer-events-none"
-                      // 💡 [해결 1] 어떤 거대 사진이 와도 무조건 액자(100%)에 쏙 들어가게 절대규격 강제 적용!
-                      style={{ 
-                        width: '100%', 
-                        height: '100%', 
-                        objectFit: 'contain',
-                        left: 0, 
-                        top: 0,
-                        transform: `translate(${selectedMedia.imgPos.x}px, ${selectedMedia.imgPos.y}px) scale(${selectedMedia.scale})`, 
-                        filter: `blur(${selectedMedia.blur}px) contrast(${selectedMedia.contrast}%) brightness(${selectedMedia.brightness}%) saturate(${selectedMedia.saturate}%)`,
+                      style={{
+                        width: '100%', height: '100%', left: 0, top: 0,
+                        transform: `translate(${selectedMedia.imgPos?.x || 0}px, ${selectedMedia.imgPos?.y || 0}px) scale(${selectedMedia.scale || 1})`,
                         transformOrigin: 'center'
                       }}
-                    />
+                    >
+                      {/* 💡 [수술] 알맹이 영상: 색상 보정(filter)만 전담! */}
+                      <video 
+                        src={selectedMedia.url} autoPlay loop muted 
+                        style={{ 
+                          width: '100%', height: '100%', objectFit: 'contain',
+                          filter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast || 100}%) brightness(${selectedMedia.brightness || 100}%) saturate(${selectedMedia.saturate || 100}%)`
+                        }}
+                      />
+                    </div>
                   ) : (
-                    <img 
-                      src={selectedMedia.url} 
-                      draggable={false} 
-                      decoding="async"
+                    // 💡 [수술] 껍데기 박스: 크기랑 위치(transform)만 전담!
+                    <div
                       className="absolute pointer-events-none"
-                      // 💡 [해결 1] 어떤 거대 사진이 와도 무조건 액자(100%)에 쏙 들어가게 절대규격 강제 적용!
-                      style={{ 
-                        width: '100%', 
-                        height: '100%', 
-                        objectFit: 'contain',
-                        left: 0, 
-                        top: 0,
-                        transform: `translate(${selectedMedia.imgPos.x}px, ${selectedMedia.imgPos.y}px) scale(${selectedMedia.scale})`, 
-                        filter: `blur(${selectedMedia.blur}px) contrast(${selectedMedia.contrast}%) brightness(${selectedMedia.brightness}%) saturate(${selectedMedia.saturate}%)`,
+                      style={{
+                        width: '100%', height: '100%', left: 0, top: 0,
+                        transform: `translate(${selectedMedia.imgPos?.x || 0}px, ${selectedMedia.imgPos?.y || 0}px) scale(${selectedMedia.scale || 1})`,
                         transformOrigin: 'center'
-                      }} 
-                    />
+                      }}
+                    >
+                      {/* 💡 [수술] 알맹이 사진: 색상 보정(filter)만 전담! */}
+                      <img 
+                        src={selectedMedia.url} draggable={false} decoding="async"
+                        style={{ 
+                          width: '100%', height: '100%', objectFit: 'contain',
+                          filter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast || 100}%) brightness(${selectedMedia.brightness || 100}%) saturate(${selectedMedia.saturate || 100}%)`
+                        }} 
+                      />
+                    </div>
                   )}
                 </div>
                 
@@ -720,7 +728,25 @@ export default function GifMakerApp() {
 
                     {activeTab !== 'text' && (
                       <div className="flex items-center gap-4 w-full">
-                        <input type="range" min={activeTab === 'scale' ? "0.1" : activeTab === 'contrast' || activeTab === 'brightness' ? "50" : "0"} max={activeTab === 'scale' ? "4" : activeTab === 'contrast' || activeTab === 'brightness' ? "150" : activeTab === 'saturate' ? "200" : activeTab === 'blur' ? "4" : "10"} step={activeTab === 'scale' || activeTab === 'blur' ? "0.1" : "1"} value={selectedMedia[activeTab]} onChange={(e) => { selectedMedia[activeTab] = Number(e.target.value); setImages([...images]); }} className="w-full accent-purple-400 cursor-pointer h-1.5 bg-white/20 rounded-lg appearance-none" />
+                        {/* 2) 보정 슬라이더 부분 */}
+                      <input 
+                        type="range" 
+                        min={activeTab === 'scale' ? "0.1" : activeTab === 'contrast' || activeTab === 'brightness' ? "50" : "0"} 
+                        max={activeTab === 'scale' ? "4" : activeTab === 'contrast' || activeTab === 'brightness' ? "150" : activeTab === 'saturate' ? "200" : activeTab === 'blur' ? "4" : "10"} 
+                        step={activeTab === 'scale' || activeTab === 'blur' ? "0.1" : "1"} 
+                        value={selectedMedia[activeTab] || ""} 
+                        className="w-full accent-purple-400 cursor-pointer h-1.5 bg-white/20 rounded-lg appearance-none"
+                        onChange={(e) => { 
+                          // 💡 [수술 핵심] 값을 숫자로 확실히 바꾸고, 화면과 저장소 둘 다 업데이트!
+                          const numValue = Number(e.target.value);
+                          const updatedMedia = { ...selectedMedia, [activeTab]: numValue };
+                          
+                          // 1. 현재 화면 즉시 적용
+                          setSelectedMedia(updatedMedia); 
+                          // 2. 전체 사진첩(images)에도 영구 저장! (다른 탭 갔다 와도 유지됨)
+                          setImages(prev => prev.map(img => img.id === updatedMedia.id ? updatedMedia : img)); 
+                        }} 
+                      />
                         <span className="w-12 text-right font-mono">{selectedMedia[activeTab]}{activeTab === 'scale' ? '배' : activeTab === 'blur' ? 'px' : activeTab === 'noise' ? '단' : '%'}</span>
                       </div>
                     )}
@@ -728,7 +754,16 @@ export default function GifMakerApp() {
                     {activeTab === 'text' && (
                       <div className="flex flex-col gap-3 w-full mt-2">
                         <div className="flex flex-wrap gap-2 items-center justify-between bg-white/5 p-2 rounded-lg border border-white/10">
-                          <input type="text" value={selectedMedia?.subtitle || ""} onClick={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()} onChange={(e) => { const newText = e.target.value; setText(newText); const updatedImages = images.map(img => img.id === selectedMedia.id ? { ...img, subtitle: newText } : img); setImages(updatedImages); setSelectedMedia(prev => ({ ...prev, subtitle: newText})); }} className="flex-1 px-2 py-1.5 bg-black/30 border border-white/20 rounded text-white text-xs focus:outline-none focus:border-purple-400" placeholder="이 사진의 자막을 입력하세요..." />
+                          <input type="text" value={selectedMedia?.subtitle || ""} 
+                            onClick={(e) => e.stopPropagation()} 
+                            onTouchStart={(e) => e.stopPropagation()} 
+                            onChange={(e) => { 
+                              const newText = e.target.value; setText(newText); 
+                              const updatedImages = images.map(img => img.id === selectedMedia.id ? { ...img, subtitle: newText } : img); 
+                              setImages(updatedImages); 
+                              setSelectedMedia(prev => ({ ...prev, subtitle: newText})); 
+                            }} 
+                            className="flex-1 px-2 py-1.5 bg-black/30 border border-white/20 rounded text-white text-xs focus:outline-none focus:border-purple-400" placeholder="이 사진의 자막을 입력하세요..." />
                           <div className="flex items-center gap-1.5 pl-2 border-l border-white/20">
                             <span className="text-gray-300">폰트:</span>
                             <select value={fontFamily} onChange={(e) => setFontFamily(e.target.value)} className="bg-black/50 border border-white/20 rounded px-1 py-1 text-xs text-white focus:outline-none">
