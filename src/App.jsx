@@ -511,23 +511,25 @@ export default function GifMakerApp() {
             className="relative bg-gray-800 rounded-xl overflow-hidden shadow-inner max-w-full z-0"
             style={{ width: `${previewSize.width}px`, height: `${previewSize.height}px`, touchAction: 'none' }} 
             
-            // 💡 [해결 3] 두 손가락 핀치 줌(확대/축소) 로직 완벽 구현!
             onTouchStart={(e) => {
-              if (e.target.closest('button') || e.target.cursor) return;
+              if (e.target.closest('button')) return;
               
               if (e.touches.length === 2) {
-                // ✌️ 두 손가락일 때: 확대/축소 모드 돌입
                 const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
                 previewRef.current.pinchStartDist = dist;
-                previewRef.current.pinchStartScale = selectedMedia?.scale || 1;
+                // 🎯 무조건 가장 최신 상태(prev)를 가져와서 기준점으로 잡기!
+                setSelectedMedia(prev => {
+                  previewRef.current.pinchStartScale = prev.scale || 1;
+                  return prev;
+                });
               } else if (e.touches.length === 1) {
-                // 👆 한 손가락일 때: 기존 드래그(이동) 모드
-                handleImgMouseDown(e);
+                handleImgMouseDown(e); // (쌤 원래 있던 한 손가락 드래그 함수)
               }
             }}
+            
+            // 💡 2. 터치 이동 (절대 과거에 갇히지 않는 'prev' 마법!)
             onTouchMove={(e) => {
-              if (e.touches.length === 2 && selectedMedia) {
-                // ✌️ 두 손가락 줌인/줌아웃
+              if (e.touches.length === 2) {
                 const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
                 const startDist = previewRef.current.pinchStartDist || dist;
                 const startScale = previewRef.current.pinchStartScale || 1;
@@ -535,23 +537,27 @@ export default function GifMakerApp() {
                 let newScale = startScale * (dist / startDist);
                 newScale = Math.max(0.1, Math.min(newScale, 5));
                 
-                // 🎯 [다이어트 성공!] 무거운 setImages 빼고, 당장 눈에 보이는 사진만 가볍게 키우기!
-                setSelectedMedia({ ...selectedMedia, scale: Number(newScale.toFixed(2)) });
+                // 🎯 낡은 selectedMedia 대신 prev를 써서 강제로 최신 크기 주입!
+                setSelectedMedia(prev => ({ ...prev, scale: Number(newScale.toFixed(2)) }));
                 
               } else if (e.touches.length === 1) {
-                // 👆 한 손가락 이동
-                handleMouseMove(e);
+                handleMouseMove(e); // (쌤 원래 있던 한 손가락 드래그 함수)
               }
             }}
+            
+            // 💡 3. 터치 끝 (최신 상태로 사진첩에 저장!)
             onTouchEnd={(e) => {
               previewRef.current.pinchStartDist = null;
               
-              // 🎯 [다이어트 성공!] 손가락 뗄 때 딱 1번만 전체 사진첩(images)에 저장!
-              if (selectedMedia) {
-                setImages(prev => prev.map(img => img.id === selectedMedia.id ? selectedMedia : img));
-              }
+              // 🎯 방금 줌인 끝난 가장 최신 상태(prev)를 그대로 사진첩(images)에 복사!
+              setSelectedMedia(prev => {
+                if (prev) {
+                  setImages(prevImages => prevImages.map(img => img.id === prev.id ? prev : img));
+                }
+                return prev; // 화면 유지
+              });
               
-              handleMouseUp();
+              handleMouseUp(e); // (쌤 원래 있던 드래그 종료 함수)
             }}
           >
             {selectedMedia ? (
