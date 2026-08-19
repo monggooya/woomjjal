@@ -250,7 +250,7 @@ export default function GifMakerApp() {
     setIsPlaying(false); 
   };
 
-  // 📸 [최종 보스 수술 완료!] 완벽한 캡처 및 움짤 생성 함수 (중복 제거됨!)
+  // 🎬 동영상/움짤 파일로 굽기 함수 (아이폰 사파리 완벽 방어 버전!)
   const handleBakeGif = async () => {
     if (images.length === 0) {
       alert("굽기 전에 사진이나 영상을 먼저 올려줘!");
@@ -259,19 +259,24 @@ export default function GifMakerApp() {
 
     setActiveTab(null); 
     
+    const targetNode = previewRef.current;
+    if (!targetNode) return;
+
     // 🎯 화면 정중앙 락온!
-    if (previewRef.current) {
-      previewRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      await new Promise(resolve => setTimeout(resolve, 800)); // 스크롤 이동 대기
-    }
-    
+    targetNode.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    await new Promise(resolve => setTimeout(resolve, 800)); 
+
+    // 🎯 [해결 1: 확대 버그 완벽 차단] 현재 액자의 픽셀 크기를 자로 정확히 재버림!
+    const width = targetNode.offsetWidth;
+    const height = targetNode.offsetHeight;
+
     try {
       const gif = new GIF({
         workers: 2,
-        quality: 10, // 초고화질
+        quality: 10, 
         workerScript: '/gif.worker.js',
-        width: previewRef.current.offsetWidth,
-        height: previewRef.current.offsetHeight
+        width: width,
+        height: height
       });
 
       for (let i = 0; i < images.length; i++) {
@@ -279,25 +284,40 @@ export default function GifMakerApp() {
         setSelectedMedia(currentImg);
         setText(currentImg.subtitle || ""); 
         
-        // 🎯 렌더링 대기 시간 넉넉하게 1초 줌 (회색 화면 방어막)
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // 🎯 사파리가 화면을 그릴 때까지 두 번, 세 번 확실하게 기다림!
+        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        await new Promise(resolve => setTimeout(resolve, 500));
 
-        // 🎯 사파리 예열 캡처 (버리고 감)
-        await htmlToImage.toPng(previewRef.current, { pixelRatio: 1 }).catch(() => {});
-        await new Promise(resolve => setTimeout(resolve, 100)); // 숨고르기
-
-        // 🎯 찐 캡처!
-        const dataUrl = await htmlToImage.toPng(previewRef.current, { 
+        // 🎯 [해결 2: 회색 화면 & 메모리 폭발 차단!] 사파리 캡처 엔진 완벽 통제!
+        const dataUrl = await htmlToImage.toPng(targetNode, { 
           useCORS: true,     
           allowTaint: true,  
-          pixelRatio: 2,
+          pixelRatio: 1, // 💡 무조건 1! (이거 올리면 아이폰 앱 화면까지 회색으로 뻗음!)
           skipAutoScale: true,
-          style: { borderRadius: '0px', transform: 'scale(1)', transformOrigin: 'top left' }
+          width: width,        // 💡 캡처 가로 픽셀 강제 고정
+          height: height,      // 💡 캡처 세로 픽셀 강제 고정
+          canvasWidth: width,  // 💡 도화지 크기도 강제 고정
+          canvasHeight: height,
+          style: { 
+            // 💡 캡처할 때만큼은 픽셀을 콱! 박아버려서 이상하게 확대되는 거 원천 차단!
+            width: `${width}px`, 
+            height: `${height}px`,
+            transform: 'none', 
+            borderRadius: '0px',
+            margin: '0',
+            padding: '0'
+          }
         });
         
         const imgElement = new Image();
+        imgElement.crossOrigin = 'anonymous';
         imgElement.src = dataUrl;
-        await new Promise(resolve => { imgElement.onload = resolve; });
+        
+        await new Promise(resolve => { 
+          imgElement.onload = resolve; 
+          imgElement.onerror = resolve; // 💡 에러 나도 안 멈추고 다음 사진으로 넘어가게 방어!
+        });
 
         gif.addFrame(imgElement, { delay: images[i].duration * 1000 });
       }
