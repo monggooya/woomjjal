@@ -256,13 +256,16 @@ export default function GifMakerApp() {
 
     setActiveTab(null); 
     
-    // 💡 [수정] instant 대신 사파리가 좋아하는 auto로 변경!
-    window.scrollTo({ top: 0, behavior: 'auto' });
+    // 🎯 [해결 1] 무조건 맨 위가 아니라, '사진 액자'가 폰 화면 정중앙에 오도록 딱 맞춰줌!
+    if (previewRef.current) {
+      previewRef.current.scrollIntoView({ behavior: 'auto', block: 'center' });
+    }
     
     try {
       const gif = new GIF({
         workers: 2,
-        quality: 30, 
+        // 🎯 [해결 2] 숫자가 낮을수록 초고화질! (기존 30 -> 10으로 압도적 상향)
+        quality: 10, 
         workerScript: '/gif.worker.js',
         width: previewRef.current.offsetWidth,
         height: previewRef.current.offsetHeight
@@ -278,8 +281,8 @@ export default function GifMakerApp() {
         const dataUrl = await htmlToImage.toPng(previewRef.current, { 
           useCORS: true,     
           allowTaint: true,  
-          pixelRatio: 1,     
-          // ❌ [삭제] 에러 뿜게 만들던 주범 cacheBust 지워버림!
+          // 🎯 [해결 3] 아이폰 쨍한 화질 살리기! (기존 1 -> 2로 2배수 뻥튀기!)
+          pixelRatio: 2,     
           style: { borderRadius: '0px' }
         });
         
@@ -301,7 +304,6 @@ export default function GifMakerApp() {
       gif.render();
     } catch (error) {
       console.error(error);
-      // 🎯 [핵심] 만약 또 실패하면 쌤 폰에 영어로 이유가 뜰 거야!
       alert('에러 원인: ' + (error.message || error));
     }
   };
