@@ -3,23 +3,21 @@ import * as htmlToImage from 'html-to-image';
 import GIF from 'gif.js';
 
 export default function GifMakerApp() {
-  // 📐 자유로운 비율 조절을 위한 미리보기 박스 크기 상태 (기본값 가로 560px, 세로 315px = 16:9 느낌)
+  // 📐 자유로운 비율 조절을 위한 미리보기 박스 크기 상태 
   const [previewSize, setPreviewSize] = useState({ width: 560, height: 315 });
   const [isResizing, setIsResizing] = useState(false);
   const resizeStart = useRef({ width: 0, height: 0, x: 0, y: 0 });
 
-  // 🔍 State 모여있는 곳 아무 데나 추가!
   const [isPlaying, setIsPlaying] = useState(false);
-
-  // 1. 저장 포맷 상태 (기본값: 'gif')
   const [exportFormat, setExportFormat] = useState('gif');
 
-// ✂️ 포토샵식 크롭을 위한 상태들
+  // ✂️ 포토샵식 크롭을 위한 상태들
   const [isCropMode, setIsCropMode] = useState(false);
   const [cropBox, setCropBox] = useState({ x: 0, y: 0, w: 300, h: 300 });
-  const [activeHandle, setActiveHandle] = useState(null); // 'nw', 'ne', 'sw', 'se'
-  const cropStartRef = useRef(null); // 드래그 시작점 기억
+  const [activeHandle, setActiveHandle] = useState(null); 
+  const cropStartRef = useRef(null); 
 
+  // ✍️ 자막 관련 상태들
   const [textPos, setTextPos] = useState({ x: 80, y: 150 });
   const [text, setText] = useState('자막을 설정해보세요.');
   const [textColor, setTextColor] = useState('#ffffff');
@@ -40,9 +38,8 @@ export default function GifMakerApp() {
   const [imgDragStart, setImgDragStart] = useState({ x: 0, y: 0 });
   
   const dragItem = useRef(null);
-  // 💡 드래그를 위한 꾹~ 누르기 판독기 추가!
   const pressTimer = useRef(null);
-  const isSortDragging = useRef(false); // 👈 "순서 바꾸기 전용"이라는 뜻으로 이름 변경! 
+  const isSortDragging = useRef(false); 
   const dragOverItem = useRef(null);
   const [batchTime, setBatchTime] = useState(0.5);
 
@@ -101,15 +98,13 @@ export default function GifMakerApp() {
     const _images = images.map(img => ({ ...img, duration: newTime }));
     setImages(_images);
 
-    // 💡 [1번 버그 해결] 화면에 띄워진 '현재 사진'의 시간 상태도 같이 최신화!
     if (selectedMedia) {
       setSelectedMedia(prev => ({ ...prev, duration: newTime }));
     }
   };
 
-  // 📐 액자 틀(비율 크롭) 우측 하단 핸들 마우스 다운
   const startResize = (e) => {
-    e.stopPropagation(); // 이미지 드래그 발동 방지
+    e.stopPropagation(); 
     setIsResizing(true);
     resizeStart.current = {
       width: previewSize.width,
@@ -119,16 +114,13 @@ export default function GifMakerApp() {
     };
   };
 
-  // 🖱️ 자막 드래그 시작
   const handleMouseDown = () => setIsDragging(true);
   
-  // 🔄 마우스 & 터치 이동 통합 관리 (자막 이동 + 액자 비율 크롭 조절)
   const handleMouseMove = (e) => {
     const clientX = e.clientX !== undefined ? e.clientX : (e.touches && e.touches[0].clientX);
     const clientY = e.clientY !== undefined ? e.clientY : (e.touches && e.touches[0].clientY);
     if (clientX === undefined || clientY === undefined) return;
 
-    // 1. ✂️ 크롭 모서리 잡고 드래그 중일 때
     if (activeHandle) {
       const deltaX = clientX - cropStartRef.current.startX;
       const deltaY = clientY - cropStartRef.current.startY;
@@ -148,26 +140,23 @@ export default function GifMakerApp() {
       return; 
     }
 
-    // 2. [수정] 📸 이미지(사진) 캔버스 드래그 중일 때 (리액트 State 정석 방식으로 변경)
     if (isImgDragging && selectedMedia) {
       const nextX = clientX - imgDragStart.x;
       const nextY = clientY - imgDragStart.y;
 
-      // 💡 직접 selectedMedia.imgPos를 수정하는 대신, 새 객체를 만들어서 setState 해주는 정석 방식!
       const updatedMedia = {
         ...selectedMedia,
         imgPos: { x: nextX, y: nextY }
       };
-      setSelectedMedia(updatedMedia); // 선택된 이미지 정보 업데이트
+      setSelectedMedia(updatedMedia); 
 
       const updatedImages = images.map(img => 
         img.id === selectedMedia.id ? updatedMedia : img
       );
-      setImages(updatedImages); // 전체 이미지 배열 업데이트
+      setImages(updatedImages); 
       return; 
     }
 
-    // 3. ✍️ 자막 드래그 중일 때
     if (!isDragging || !previewRef.current) return;
     const rect = previewRef.current.getBoundingClientRect();
     let x = clientX - rect.left - 100;
@@ -181,18 +170,14 @@ export default function GifMakerApp() {
     setIsDragging(false);
     setIsImgDragging(false);
 
-    // ✂️ 마우스를 놓는 순간 싹둑 자르기
     if (activeHandle) {
-      // 1. 액자 크기를 내가 그린 크롭 박스 크기로 변경
       setPreviewSize({ width: cropBox.w, height: cropBox.h });
       
-      // 2. [수정] 잘려 나간 좌표만큼 이미지 위치를 보정하면서, selectedMedia도 새 객체로 싱크 맞춰주기!
       const updated = images.map(img => {
         const newImg = {
           ...img,
           imgPos: { x: img.imgPos.x - cropBox.x, y: img.imgPos.y - cropBox.y }
         };
-        // 💡 중요: 지금 쌤이 보고 있는 이미지라면 selectedMedia State도 같이 새것으로 교체해 줘!
         if (img.id === selectedMedia.id) {
           setSelectedMedia(newImg);
         }
@@ -200,19 +185,15 @@ export default function GifMakerApp() {
       });
       setImages(updated);
       
-      // 3. 모드를 강제 종료하지 말고, 방금 자른 새 액자 크기(0, 0)에 맞춰서 점선 박스만 찰싹 붙여줌!
       setCropBox({ x: 0, y: 0, w: cropBox.w, h: cropBox.h });
       setActiveHandle(null);
     }
   };
 
-  // 📸 이미지 클릭 시작할 때 좌표 제대로 잡기
   const handleImgMouseDown = (e) => {
-    // 자막(.cursor-move)이나 버튼을 누른 게 아닐 때만 이미지 드래그 시작!
     if (e.target.tagName === 'INPUT' || e.target.closest('.cursor-move') || !selectedMedia) return; 
     setIsImgDragging(true);
     
-    // PC 마우스 & 모바일 터치 둘 다 대응
     const clientX = e.clientX !== undefined ? e.clientX : (e.touches && e.touches[0].clientX);
     const clientY = e.clientY !== undefined ? e.clientY : (e.touches && e.touches[0].clientY);
     
@@ -234,20 +215,25 @@ export default function GifMakerApp() {
   const handlePreviewPlay = async () => {
     if (images.length === 0) return;
     
-    setIsPlaying(true); // 🔴 온에어 불 켜기!
+    // 💡 미리보기 중에도 화면이 딴 데로 튀지 않게 중앙 고정!
+    if (previewRef.current) {
+      previewRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    
+    setIsPlaying(true); 
     
     for (let i = 0; i < images.length; i++) {
       const currentImg = images[i];
-      setSelectedMedia(currentImg);        // 사진 바꾸고
-      setText(currentImg.subtitle || "");  // 자막도 맞게 바꾸고!
+      setSelectedMedia(currentImg);        
+      setText(currentImg.subtitle || "");  
       
-      // ⏱️ 해당 사진의 duration(초) 만큼 기다리기!
       await new Promise(resolve => setTimeout(resolve, currentImg.duration * 1000));
     }
     
-    setIsPlaying(false); // 💡 상영 끝! 불 끄기
+    setIsPlaying(false); 
   };
 
+  // 📸 [최종 보스 수술 완료!] 완벽한 캡처 및 움짤 생성 함수 (중복 제거됨!)
   const handleBakeGif = async () => {
     if (images.length === 0) {
       alert("굽기 전에 사진이나 영상을 먼저 올려줘!");
@@ -256,78 +242,16 @@ export default function GifMakerApp() {
 
     setActiveTab(null); 
     
-    // 🎯 [해결 1] 무조건 맨 위가 아니라, '사진 액자'가 폰 화면 정중앙에 오도록 딱 맞춰줌!
-    if (previewRef.current) {
-      previewRef.current.scrollIntoView({ behavior: 'auto', block: 'center' });
-    }
-    
-    try {
-      const gif = new GIF({
-        workers: 2,
-        // 🎯 [해결 2] 숫자가 낮을수록 초고화질! (기존 30 -> 10으로 압도적 상향)
-        quality: 10, 
-        workerScript: '/gif.worker.js',
-        width: previewRef.current.offsetWidth,
-        height: previewRef.current.offsetHeight
-      });
-
-      for (let i = 0; i < images.length; i++) {
-        const currentImg = images[i];
-        setSelectedMedia(currentImg);
-        setText(currentImg.subtitle || ""); 
-        
-        await new Promise(resolve => setTimeout(resolve, 800));
-
-        const dataUrl = await htmlToImage.toPng(previewRef.current, { 
-          useCORS: true,     
-          allowTaint: true,  
-          // 🎯 [해결 3] 아이폰 쨍한 화질 살리기! (기존 1 -> 2로 2배수 뻥튀기!)
-          pixelRatio: 2,     
-          style: { borderRadius: '0px' }
-        });
-        
-        const imgElement = new Image();
-        imgElement.src = dataUrl;
-        await new Promise(resolve => { imgElement.onload = resolve; });
-
-        gif.addFrame(imgElement, { delay: images[i].duration * 1000 });
-      }
-
-      gif.on('finished', (blob) => {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'my-retro-gif.gif';
-        a.click();
-      });
-
-      gif.render();
-    } catch (error) {
-      console.error(error);
-      alert('에러 원인: ' + (error.message || error));
-    }
-  };
-
-  // 🎬 동영상 파일로 굽기 함수
-  const handleBakeGif = async () => {
-    if (images.length === 0) {
-      alert("굽기 전에 사진이나 영상을 먼저 올려줘!");
-      return;
-    }
-
-    setActiveTab(null); 
-    
-    // 🎯 화면 중앙으로 스크롤 스르륵~ 이동!
+    // 🎯 화면 정중앙 락온!
     if (previewRef.current) {
       previewRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      // 🎯 [해결 1] 스크롤 스르륵 내려가는 시간 기다려주기! (이거 안 기다리면 화면 이동하다가 허공 찍혀서 회색됨!)
-      await new Promise(resolve => setTimeout(resolve, 800));
+      await new Promise(resolve => setTimeout(resolve, 800)); // 스크롤 이동 대기
     }
     
     try {
       const gif = new GIF({
         workers: 2,
-        quality: 10, 
+        quality: 10, // 초고화질
         workerScript: '/gif.worker.js',
         width: previewRef.current.offsetWidth,
         height: previewRef.current.offsetHeight
@@ -338,19 +262,20 @@ export default function GifMakerApp() {
         setSelectedMedia(currentImg);
         setText(currentImg.subtitle || ""); 
         
-        // 사진 렌더링 기다리기
-        await new Promise(resolve => setTimeout(resolve, 800));
+        // 🎯 렌더링 대기 시간 넉넉하게 1초 줌 (회색 화면 방어막)
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
-        // 🎯 [해결 2: 사파리 엔진 예열!] 첫 번째 캡처 무조건 회색으로 날아가는 버그 막기 위해 가짜로 한 번 찍고 버림!
+        // 🎯 사파리 예열 캡처 (버리고 감)
         await htmlToImage.toPng(previewRef.current, { pixelRatio: 1 }).catch(() => {});
+        await new Promise(resolve => setTimeout(resolve, 100)); // 숨고르기
 
         // 🎯 찐 캡처!
         const dataUrl = await htmlToImage.toPng(previewRef.current, { 
           useCORS: true,     
           allowTaint: true,  
           pixelRatio: 2,
-          skipAutoScale: true, // 사파리 캡처 비율 꼬이는 거 방지!
-          style: { borderRadius: '0px' }
+          skipAutoScale: true,
+          style: { borderRadius: '0px', transform: 'scale(1)', transformOrigin: 'top left' }
         });
         
         const imgElement = new Image();
@@ -405,7 +330,7 @@ export default function GifMakerApp() {
           <span className="text-gray-400 text-sm mt-1">드래그해서 여러 장 선택 가능</span>
         </div>
 
-        {/* 📐 움짤 크기 비율 설정 버튼 재도입 */}
+        {/* 📐 움짤 크기 비율 설정 버튼 */}
         <div className="w-full flex flex-col gap-2 bg-gray-50 p-4 rounded-xl border border-gray-200">
           <span className="text-xs font-bold text-gray-600">이미지 비율:</span>
           <div className="flex gap-2 flex-wrap">
@@ -414,7 +339,7 @@ export default function GifMakerApp() {
               { label: '(16:9)', w: 560, h: 315 },
               { label: '(4:3)', w: 480, h: 360 },
               { label: '(9:16)', w: 315, h: 560 },
-              { label: '(3:4)', w: 360, h: 480 }, // 💡 [추가] 3:4 비율 완벽 세팅!
+              { label: '(3:4)', w: 360, h: 480 }, 
               { label: '자유', isCrop: true }
             ].map((ratio) => (
               <button
@@ -431,7 +356,6 @@ export default function GifMakerApp() {
                   } else {
                     setIsCropMode(false);
                     setPreviewSize({ width: ratio.w, height: ratio.h });
-                    // 🎯 [자막 미아 구출 작전!] 비율을 바꿀 때 무조건 자막을 왼쪽 상단(0,0)으로 소환!
                     setTextPos({ x: 0, y: 0 }); 
                   }
                 }}
@@ -476,11 +400,7 @@ export default function GifMakerApp() {
             {/* 기존 썸네일 리스트 */}
             <div className="flex gap-4 overflow-x-auto py-2 px-1 items-center">
               {images.map((img, index) => (
-                
-                // 💡 1. 썸네일덩어리 + 화살표를 가로로 나란히 두는 왕 껍데기
                 <div key={img.id} className="flex items-center gap-3 flex-shrink-0">
-                  
-                  {/* 💡 2. [썸네일 위, 시간 아래] 세로로 묶어주는 껍데기 */}
                   <div className="flex flex-col items-center gap-2">
                     <div 
                       data-index={index} 
@@ -542,7 +462,6 @@ export default function GifMakerApp() {
                       </div>
                     </div>
                     
-                    {/* 컷별 재생 시간 조절 입력창 */}
                     <div className="flex items-center gap-1 text-sm">
                       <input 
                         type="number" 
@@ -555,17 +474,14 @@ export default function GifMakerApp() {
                       <span className="text-gray-500 font-medium">초</span>
                     </div>
                   </div>
-                  {/* 👆 여기까지가 썸네일+시간 묶음 끝! */}
 
-                  {/* 🎯 3. [추가된 맞교환 마법 버튼!] */}
-                  {/* 배열의 마지막 사진이 아니면 ↔️ 화살표 버튼을 그려라! */}
+                  {/* ↔️ 맞교환 화살표 버튼 */}
                   {index < images.length - 1 && (
                     <button
                       type="button"
                       onClick={() => {
                         setImages(prev => {
                           const newArr = [...prev];
-                          // 앞 사진이랑 뒷 사진 맞교환!
                           [newArr[index], newArr[index + 1]] = [newArr[index + 1], newArr[index]];
                           return newArr;
                         });
@@ -575,7 +491,6 @@ export default function GifMakerApp() {
                       ↔️
                     </button>
                   )}
-
                 </div>
               ))}
             </div>
@@ -583,43 +498,34 @@ export default function GifMakerApp() {
         )}
 
         {/* 📺 메인 미리보기 박스 영역 */}
-        {/* 💡 [수정] overflow-auto 땜에 스크롤 생기던 거 hidden으로 막고 가운데 정렬(justify-center)! */}
         <div className="w-full flex items-start justify-center p-4 bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
-          
           <div 
             ref={previewRef}
             onMouseDown={handleImgMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
-            
             className="relative bg-gray-800 rounded-xl overflow-hidden shadow-inner max-w-full z-0"
-            
-            // 🎯 [아이폰 비율 파괴범 검거!] 고정 px을 지우고, 비율(aspectRatio)을 강제해 줬어!
             style={{ 
-              width: '100%', // 가로는 화면에 꽉 차게!
-              maxWidth: `${previewSize.width}px`, // PC에서는 너무 커지지 않게 원래 사이즈 제한
-              aspectRatio: `${previewSize.width} / ${previewSize.height}`, // ⭐️ 무슨 일이 있어도 이 비율 유지!
+              width: '100%', 
+              maxWidth: `${previewSize.width}px`, 
+              aspectRatio: `${previewSize.width} / ${previewSize.height}`, 
               touchAction: 'none' 
             }} 
-          
             onTouchStart={(e) => {
               if (e.target.closest('button')) return;
               
               if (e.touches.length === 2) {
                 const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
                 previewRef.current.pinchStartDist = dist;
-                // 🎯 무조건 가장 최신 상태(prev)를 가져와서 기준점으로 잡기!
                 setSelectedMedia(prev => {
                   previewRef.current.pinchStartScale = prev.scale || 1;
                   return prev;
                 });
               } else if (e.touches.length === 1) {
-                handleImgMouseDown(e); // (쌤 원래 있던 한 손가락 드래그 함수)
+                handleImgMouseDown(e); 
               }
             }}
-            
-            // 💡 2. 터치 이동 (절대 과거에 갇히지 않는 'prev' 마법!)
             onTouchMove={(e) => {
               if (e.touches.length === 2) {
                 const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
@@ -629,27 +535,21 @@ export default function GifMakerApp() {
                 let newScale = startScale * (dist / startDist);
                 newScale = Math.max(0.1, Math.min(newScale, 5));
                 
-                // 🎯 낡은 selectedMedia 대신 prev를 써서 강제로 최신 크기 주입!
                 setSelectedMedia(prev => ({ ...prev, scale: Number(newScale.toFixed(2)) }));
                 
               } else if (e.touches.length === 1) {
-                handleMouseMove(e); // (쌤 원래 있던 한 손가락 드래그 함수)
+                handleMouseMove(e); 
               }
             }}
-            
-            // 💡 3. 터치 끝 (최신 상태로 사진첩에 저장!)
             onTouchEnd={(e) => {
               previewRef.current.pinchStartDist = null;
-              
-              // 🎯 방금 줌인 끝난 가장 최신 상태(prev)를 그대로 사진첩(images)에 복사!
               setSelectedMedia(prev => {
                 if (prev) {
                   setImages(prevImages => prevImages.map(img => img.id === prev.id ? prev : img));
                 }
-                return prev; // 화면 유지
+                return prev; 
               });
-              
-              handleMouseUp(e); // (쌤 원래 있던 드래그 종료 함수)
+              handleMouseUp(e); 
             }}
           >
             {selectedMedia ? (
@@ -657,72 +557,55 @@ export default function GifMakerApp() {
                 {/* 노이즈 레이어 */}
                 <div className="absolute inset-0 pointer-events-none z-10 opacity-25" style={{ display: selectedMedia.noise > 0 ? 'block' : 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`, filter: `contrast(${100 + selectedMedia.noise * 8}%)` }} />
 
-                {/* 1) 메인 사진 뜨는 곳 */}
+                {/* 1) 메인 사진 뜨는 곳 (💡 두 손가락 줌 버벅임 완벽 해결 구역!) */}
                 <div 
-                  className="w-full h-full overflow-hidden flex items-start justify-start relative"
+                  className="w-full h-full overflow-hidden flex items-start justify-start relative pointer-events-none"
                   style={{ touchAction: 'none' }} 
                 >
-                  {selectedMedia.type === 'video' ? (
-                    <div
-                      className="absolute pointer-events-none"
-                      style={{
-                        width: '100%', height: '100%', left: 0, top: 0,
-                        transform: `translate(${selectedMedia.imgPos?.x || 0}px, ${selectedMedia.imgPos?.y || 0}px) scale(${selectedMedia.scale || 1})`,
-                        transformOrigin: 'center'
-                      }}
-                    >
+                  <div
+                    className="absolute pointer-events-none"
+                    style={{
+                      width: '100%', height: '100%', left: 0, top: 0,
+                      transform: `translate(${selectedMedia.imgPos?.x || 0}px, ${selectedMedia.imgPos?.y || 0}px) scale(${selectedMedia.scale || 1})`,
+                      transformOrigin: 'center'
+                    }}
+                  >
+                    {selectedMedia.type === 'video' ? (
                       <video 
                         src={selectedMedia.url} autoPlay loop muted playsInline 
-                        draggable={false} // 👈 
+                        draggable={false} 
                         style={{ 
                           width: '100%', height: '100%', objectFit: 'contain',
-                          
-                          // 🎯 [줌 뻑뻑함 완벽 해결!] 사진 자체의 터치 본능을 싹 다 죽이는 방어막 5총사!
-                          pointerEvents: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', WebkitUserDrag: 'none', userSelect: 'none',
-                          
+                          // 🎯 방어막 5총사 떡칠! (사진 터치 본능 절대 금지)
+                          pointerEvents: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', WebkitUserDrag: 'none', userSelect: 'none', touchAction: 'none',
                           filter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast || 100}%) brightness(${selectedMedia.brightness || 100}%) saturate(${selectedMedia.saturate || 100}%)`,
                           WebkitFilter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast || 100}%) brightness(${selectedMedia.brightness || 100}%) saturate(${selectedMedia.saturate || 100}%)`
                         }}
                       />
-                    </div>
-                  ) : (
-                    <div
-                      className="absolute pointer-events-none"
-                      style={{
-                        width: '100%', height: '100%', left: 0, top: 0,
-                        transform: `translate(${selectedMedia.imgPos?.x || 0}px, ${selectedMedia.imgPos?.y || 0}px) scale(${selectedMedia.scale || 1})`,
-                        transformOrigin: 'center'
-                      }}
-                    >
+                    ) : (
                       <img 
                         src={selectedMedia.url} draggable={false} 
                         style={{ 
                           width: '100%', height: '100%', objectFit: 'contain',
-                          
-                          // 🎯 [줌 뻑뻑함 완벽 해결!] 사진 자체의 터치 본능을 싹 다 죽이는 방어막 5총사!
-                          pointerEvents: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', WebkitUserDrag: 'none', userSelect: 'none',
-                          
+                          // 🎯 방어막 5총사 떡칠! (사진 터치 본능 절대 금지)
+                          pointerEvents: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', WebkitUserDrag: 'none', userSelect: 'none', touchAction: 'none',
                           filter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast || 100}%) brightness(${selectedMedia.brightness || 100}%) saturate(${selectedMedia.saturate || 100}%)`,
                           WebkitFilter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast || 100}%) brightness(${selectedMedia.brightness || 100}%) saturate(${selectedMedia.saturate || 100}%)`
                         }} 
                       />
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
                 
                 {/* 3. 자막 레이어 */}
                 <div 
                   draggable={false}
-                  // 💡 [버그 해결 1] 마우스/터치 시작할 때 '초기 자막 위치'와 '초기 손가락 위치' 기억!
-                  // 💡 [수정됨] 쌤의 textPos 변수를 직접 움직이는 완벽한 포인터 로직!
                   onPointerDown={(e) => {
                     e.stopPropagation();
                     e.target.setPointerCapture(e.pointerId);
                     previewRef.current.isTextDragging = true;
                     previewRef.current.startX = e.clientX;
                     previewRef.current.startY = e.clientY;
-                    
-                    // 🎯 내가 엄한 selectedMedia 찾던 걸 쌤의 진짜 textPos로 바꿨어!
                     previewRef.current.initTextX = textPos.x || 0; 
                     previewRef.current.initTextY = textPos.y || 0;
                   }}
@@ -731,8 +614,6 @@ export default function GifMakerApp() {
                     if (!previewRef.current.isTextDragging) return;
                     const deltaX = e.clientX - previewRef.current.startX;
                     const deltaY = e.clientY - previewRef.current.startY;
-                    
-                    // 🎯 여기가 하이라이트! setSelectedMedia가 아니라 쌤의 setTextPos를 호출!
                     setTextPos({ 
                       x: previewRef.current.initTextX + deltaX, 
                       y: previewRef.current.initTextY + deltaY 
@@ -772,13 +653,11 @@ export default function GifMakerApp() {
                 {/* 4. 세팅 조절바 패널 영역 */}
                 {selectedMedia && activeTab && (
                   <div 
-                    // 💡 [버그 해결] 메뉴판 안에서의 터치/스크롤/마우스 움직임이 뒤쪽 사진으로 뚫고 나가는 걸 완벽 방어!
                     onMouseDown={(e) => e.stopPropagation()}
                     onTouchStart={(e) => e.stopPropagation()}
                     onMouseMove={(e) => e.stopPropagation()}
                     onTouchMove={(e) => e.stopPropagation()}
                     onWheel={(e) => e.stopPropagation()}
-                    
                     className={`absolute left-4 right-4 bg-black/80 backdrop-blur-md rounded-xl p-4 z-30 border border-white/10 flex flex-col gap-3 text-white text-xs max-h-40 overflow-y-auto shadow-2xl transition-all duration-300 ${isPanelTop ? 'top-4' : 'bottom-4'}`}
                   >
                     <div className="flex justify-between items-center border-b border-white/10 pb-2">
@@ -803,7 +682,6 @@ export default function GifMakerApp() {
 
                     {activeTab !== 'text' && (
                       <div className="flex items-center gap-4 w-full">
-                        {/* 2) 보정 슬라이더 부분 */}
                       <input 
                         type="range" 
                         min={activeTab === 'scale' ? "0.1" : activeTab === 'contrast' || activeTab === 'brightness' ? "50" : "0"} 
@@ -812,13 +690,9 @@ export default function GifMakerApp() {
                         value={selectedMedia[activeTab] || ""} 
                         className="w-full accent-purple-400 cursor-pointer h-1.5 bg-white/20 rounded-lg appearance-none"
                         onChange={(e) => { 
-                          // 💡 [수술 핵심] 값을 숫자로 확실히 바꾸고, 화면과 저장소 둘 다 업데이트!
                           const numValue = Number(e.target.value);
                           const updatedMedia = { ...selectedMedia, [activeTab]: numValue };
-                          
-                          // 1. 현재 화면 즉시 적용
                           setSelectedMedia(updatedMedia); 
-                          // 2. 전체 사진첩(images)에도 영구 저장! (다른 탭 갔다 와도 유지됨)
                           setImages(prev => prev.map(img => img.id === updatedMedia.id ? updatedMedia : img)); 
                         }} 
                       />
@@ -915,22 +789,16 @@ export default function GifMakerApp() {
                   </div>
                 )}
 
-                {/* 5. ✂️ 포토샵식 크롭 오버레이 & 완료 버튼 (주석 처리된 자리에 실제 로직을 통째로 올바르게 넣었어!) */}
+                {/* 5. ✂️ 포토샵식 크롭 오버레이 */}
                 {isCropMode && (
                   <div className="absolute inset-0 z-50 pointer-events-none overflow-hidden flex flex-col items-center justify-end pb-4">
-                    
-                    {/* 보라색 점선 박스 테두리 */}
                     <div
                       className="absolute border-2 border-purple-500 border-dashed pointer-events-auto z-10"
                       style={{
-                        left: cropBox.x,
-                        top: cropBox.y,
-                        width: cropBox.w,
-                        height: cropBox.h,
+                        left: cropBox.x, top: cropBox.y, width: cropBox.w, height: cropBox.h,
                         boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.6)'
                       }}
                     >
-                      {/* 4개 모서리 조절 꼭짓점 */}
                       {['nw', 'ne', 'sw', 'se'].map(pos => (
                         <div
                           key={pos}
@@ -955,9 +823,6 @@ export default function GifMakerApp() {
                         />
                       ))}
                     </div>
-
-                    
-
                   </div>
                 )}
                 
@@ -967,7 +832,7 @@ export default function GifMakerApp() {
             )}
           </div>
         </div>
-        {/* 👇 여기 빈 공간에 이 코드를 쏙 붙여넣어 줘! 👇 */}
+        
         {isCropMode && (
           <div className="w-full flex justify-center mt-4 mb-2 z-50">
             <button 
@@ -979,13 +844,6 @@ export default function GifMakerApp() {
             </button>
           </div>
         )}
-        {/* 👆 여기까지 👆 */}
-
-
-        {/* 👇 그 아래에는 원래 있던 메뉴 바가 그대로 이어지면 돼! */}
-        {/* 🎛️ 격자무늬 표 모양 메뉴 바 */}
-        <div className="w-full -mt-6 border border-gray-300 bg-white flex flex-wrap divide-x divide-gray-300 overflow-hidden rounded-b-xl z-20"></div>
-        {/* 🔍 여기까지 덮어쓰기 완료! (끝점) */}
 
         {/* 🎛️ 격자무늬 표 모양 메뉴 바 */}
         <div className="w-full -mt-6 border border-gray-300 bg-white flex flex-wrap divide-x divide-gray-300 overflow-hidden rounded-b-xl z-20">
@@ -1019,9 +877,7 @@ export default function GifMakerApp() {
       <div className="flex gap-4 items-center justify-center my-4">
         <label className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold cursor-pointer transition ${exportFormat === 'gif' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
           <input 
-            type="radio" 
-            name="format" 
-            value="gif" 
+            type="radio" name="format" value="gif" 
             checked={exportFormat === 'gif'} 
             onChange={() => setExportFormat('gif')}
             className="hidden" 
@@ -1031,9 +887,7 @@ export default function GifMakerApp() {
 
         <label className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold cursor-pointer transition ${exportFormat === 'video' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
           <input 
-            type="radio" 
-            name="format" 
-            value="video" 
+            type="radio" name="format" value="video" 
             checked={exportFormat === 'video'} 
             onChange={() => setExportFormat('video')}
             className="hidden" 
@@ -1041,26 +895,22 @@ export default function GifMakerApp() {
           🎬 동영상(WebM/MP4)
         </label>
       </div>
-
-      {/* 👇 저장 포맷 선택 스위치(GIF/동영상) 바로 위나 아래, 맘에 드는 곳에 쏙 넣어줘! */}
         
-        {/* ▶️ 미리보기 재생 버튼 */}
-        <div className="flex justify-center mt-6 mb-2 z-10">
-          <button
-            type="button"
-            onClick={handlePreviewPlay}
-            disabled={isPlaying}
-            className={`px-8 py-3 rounded-full font-bold text-lg shadow-md transition transform ${
-              isPlaying 
-                ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
-                : 'bg-blue-500 text-white hover:bg-blue-600 active:scale-95'
-            }`}
-          >
-            {isPlaying ? '🍿 미리보기 재생 중...' : '▶️ 미리보기'}
-          </button>
-        </div>
-
-      {/* 👆 여기까지 추가 완료! */}
+      {/* ▶️ 미리보기 재생 버튼 */}
+      <div className="flex justify-center mt-6 mb-2 z-10">
+        <button
+          type="button"
+          onClick={handlePreviewPlay}
+          disabled={isPlaying}
+          className={`px-8 py-3 rounded-full font-bold text-lg shadow-md transition transform ${
+            isPlaying 
+              ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
+              : 'bg-blue-500 text-white hover:bg-blue-600 active:scale-95'
+          }`}
+        >
+          {isPlaying ? '🍿 미리보기 재생 중...' : '▶️ 미리보기'}
+        </button>
+      </div>
 
       <button 
         onClick={handleBakeGif}
