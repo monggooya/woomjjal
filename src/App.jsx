@@ -256,8 +256,8 @@ export default function GifMakerApp() {
 
     setActiveTab(null); 
     
-    // 🎯 [특효약 1] 캡처 시작 전, 강제로 화면 맨 위로 끌어올리기! (스크롤 절반 잘림 완벽 방지)
-    window.scrollTo({ top: 0, behavior: 'instant' });
+    // 💡 [수정] instant 대신 사파리가 좋아하는 auto로 변경!
+    window.scrollTo({ top: 0, behavior: 'auto' });
     
     try {
       const gif = new GIF({
@@ -273,16 +273,13 @@ export default function GifMakerApp() {
         setSelectedMedia(currentImg);
         setText(currentImg.subtitle || ""); 
         
-        // 🎯 [특효약 2] 사진이 화면에 완벽하게 뜰 때까지 기다리는 시간 늘리기! (0.3초 -> 0.8초)
         await new Promise(resolve => setTimeout(resolve, 800));
 
         const dataUrl = await htmlToImage.toPng(previewRef.current, { 
           useCORS: true,     
           allowTaint: true,  
-          // 🎯 [특효약 3] 아이폰 화질 뻥튀기 메모리 폭발(전체 회색) 방지!
           pixelRatio: 1,     
-          // 🎯 [특효약 4] 이전 사진의 잔상이나 캐시가 꼬이는 것 방지!
-          cacheBust: true,   
+          // ❌ [삭제] 에러 뿜게 만들던 주범 cacheBust 지워버림!
           style: { borderRadius: '0px' }
         });
         
@@ -304,7 +301,8 @@ export default function GifMakerApp() {
       gif.render();
     } catch (error) {
       console.error(error);
-      alert('오류가 발생하였습니다. 다시 시도해 주세요!');
+      // 🎯 [핵심] 만약 또 실패하면 쌤 폰에 영어로 이유가 뜰 거야!
+      alert('에러 원인: ' + (error.message || error));
     }
   };
 
