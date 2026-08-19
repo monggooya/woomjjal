@@ -339,7 +339,6 @@ export default function GifMakerApp() {
         if (currentImg.subtitle) {
           ctx.save();
           ctx.globalAlpha = textOpacity / 100;
-          // 폰트 설정 (작은 따옴표 제거)
           ctx.font = `${isItalic ? 'italic ' : ''}bold ${fontSize}px ${fontFamily.replace(/['"]/g, '')}`;
           ctx.textBaseline = 'top';
           ctx.textAlign = 'left';
@@ -354,22 +353,34 @@ export default function GifMakerApp() {
             ctx.fillRect(tx - 5, ty - 2, metrics.width + 10, fontSize + 10);
           }
 
-          // 4-2. 그림자
+          // 🎯 [핵심] 그림자 설정 초기화 (꺼져 있으면 아예 안 나오게!)
+          ctx.shadowColor = 'transparent';
+          ctx.shadowBlur = 0;
+          ctx.shadowOffsetX = 0;
+          ctx.shadowOffsetY = 0;
+
           if (hasShadow) {
             ctx.shadowColor = 'rgba(0,0,0,0.5)';
+            ctx.shadowBlur = 4;
             ctx.shadowOffsetX = 2;
             ctx.shadowOffsetY = 2;
-            ctx.shadowBlur = 4;
           }
 
-          // 4-3. 테두리
+          // 4-2. 테두리
           if (hasStroke) {
+            // 테두리 칠할 때는 그림자 잠시 끄기 (겹침 방지)
+            ctx.shadowColor = 'transparent'; 
             ctx.strokeStyle = strokeColor;
             ctx.lineWidth = strokeWidth * 2; 
             ctx.strokeText(currentImg.subtitle, tx, ty);
+            
+            // 테두리 다 쳤으면 다시 원래 그림자 설정으로 복구
+            if (hasShadow) {
+              ctx.shadowColor = 'rgba(0,0,0,0.5)';
+            }
           }
 
-          // 4-4. 글자 알맹이 색
+          // 4-3. 글자 알맹이 색
           ctx.fillStyle = textColor;
           ctx.fillText(currentImg.subtitle, tx, ty);
 
