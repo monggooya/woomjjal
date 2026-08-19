@@ -15,18 +15,9 @@ export default function GifMakerApp() {
   const [activeHandle, setActiveHandle] = useState(null); 
   const cropStartRef = useRef(null); 
 
-  const [textPos, setTextPos] = useState({ x: 80, y: 150 });
+  // ✍️ 공용 자막 텍스트 상태
   const [text, setText] = useState('자막을 설정해보세요.');
-  const [textColor, setTextColor] = useState('#ffffff');
-  const [fontFamily, setFontFamily] = useState('"Jua", sans-serif');
-  const [strokeColor, setStrokeColor] = useState('#000000');
-  const [hasShadow, setHasShadow] = useState(true);
-  const [fontSize, setFontSize] = useState(40);
-  const [isItalic, setIsItalic] = useState(false);
-  const [hasStroke, setHasStroke] = useState(true);
-  const [strokeWidth, setStrokeWidth] = useState(2);
-  const [textOpacity, setTextOpacity] = useState(100);
-  const [isDragging, setIsDragging] = useState(false);
+  const [textPos, setTextPos] = useState({ x: 80, y: 150 });
   
   const previewRef = useRef(null);
   const [images, setImages] = useState([]);
@@ -43,10 +34,7 @@ export default function GifMakerApp() {
   const [activeTab, setActiveTab] = useState(null);
   const [isPanelTop, setIsPanelTop] = useState(false);
 
-  const [hasBackground, setHasBackground] = useState(false);
-  const [bgColor, setBgColor] = useState('#000000');
-
-  // 📸 [해결 1] 사파리 GPU 폭발 방지! 사진을 600px로 초강력 다이어트!
+  // 📸 [핵심 1] 사진 업로드할 때 개별 자막 스타일(색상, 폰트, 테두리 등) 기본값 심어주기!
   const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
@@ -58,7 +46,10 @@ export default function GifMakerApp() {
             id: Math.random().toString(36).substr(2, 9),
             url: URL.createObjectURL(file), 
             type: 'video', duration: 0.5, subtitle: "", scale: 1, imgPos: { x: 0, y: 0 },
-            blur: 0, contrast: 100, brightness: 100, saturate: 100, noise: 0
+            blur: 0, contrast: 100, brightness: 100, saturate: 100, noise: 0,
+            textColor: '#ffffff', fontFamily: '"Jua", sans-serif', strokeColor: '#000000',
+            hasShadow: true, fontSize: 40, isItalic: false, hasStroke: true, strokeWidth: 2,
+            textOpacity: 100, hasBackground: false, bgColor: '#000000'
           });
         } else {
           const reader = new FileReader();
@@ -66,7 +57,6 @@ export default function GifMakerApp() {
             const img = new Image();
             img.onload = () => {
               const canvas = document.createElement('canvas');
-              // 🎯 1000px도 사파리한텐 무거웠다! 움짤 표준 사이즈 600px로 팍 줄임! (절대 안 하얘짐)
               const MAX_SIZE = 600; 
               let width = img.width;
               let height = img.height;
@@ -90,7 +80,11 @@ export default function GifMakerApp() {
                 id: Math.random().toString(36).substr(2, 9),
                 url: optimizedBase64,
                 type: 'image', duration: 0.5, subtitle: "", scale: 1, imgPos: { x: 0, y: 0 },
-                blur: 0, contrast: 100, brightness: 100, saturate: 100, noise: 0
+                blur: 0, contrast: 100, brightness: 100, saturate: 100, noise: 0,
+                // 💡 사진마다 독립된 자막 스타일 저장소 부여!
+                textColor: '#ffffff', fontFamily: '"Jua", sans-serif', strokeColor: '#000000',
+                hasShadow: true, fontSize: 40, isItalic: false, hasStroke: true, strokeWidth: 2,
+                textOpacity: 100, hasBackground: false, bgColor: '#000000'
               });
             };
             img.src = event.target.result;
@@ -138,42 +132,10 @@ export default function GifMakerApp() {
     }
   };
 
-  const startResize = (e) => {
-    e.stopPropagation(); 
-    setIsResizing(true);
-    resizeStart.current = {
-      width: previewSize.width,
-      height: previewSize.height,
-      x: e.clientX || e.touches[0].clientX,
-      y: e.clientY || e.touches[0].clientY
-    };
-  };
-
-  const handleMouseDown = () => setIsDragging(true);
-  
   const handleMouseMove = (e) => {
     const clientX = e.clientX !== undefined ? e.clientX : (e.touches && e.touches[0].clientX);
     const clientY = e.clientY !== undefined ? e.clientY : (e.touches && e.touches[0].clientY);
     if (clientX === undefined || clientY === undefined) return;
-
-    if (activeHandle) {
-      const deltaX = clientX - cropStartRef.current.startX;
-      const deltaY = clientY - cropStartRef.current.startY;
-      let newBox = { ...cropStartRef.current.startBox };
-
-      if (activeHandle.includes('e')) newBox.w = Math.max(100, newBox.w + deltaX);
-      if (activeHandle.includes('s')) newBox.h = Math.max(100, newBox.h + deltaY);
-      if (activeHandle.includes('w')) {
-        const shift = Math.min(deltaX, newBox.w - 100);
-        newBox.x += shift; newBox.w -= shift;
-      }
-      if (activeHandle.includes('n')) {
-        const shift = Math.min(deltaY, newBox.h - 100);
-        newBox.y += shift; newBox.h -= shift;
-      }
-      setCropBox(newBox);
-      return; 
-    }
 
     if (isImgDragging && selectedMedia) {
       const nextX = clientX - imgDragStart.x;
@@ -204,25 +166,6 @@ export default function GifMakerApp() {
   const handleMouseUp = () => {
     setIsDragging(false);
     setIsImgDragging(false);
-
-    if (activeHandle) {
-      setPreviewSize({ width: cropBox.w, height: cropBox.h });
-      
-      const updated = images.map(img => {
-        const newImg = {
-          ...img,
-          imgPos: { x: img.imgPos.x - cropBox.x, y: img.imgPos.y - cropBox.y }
-        };
-        if (img.id === selectedMedia.id) {
-          setSelectedMedia(newImg);
-        }
-        return newImg;
-      });
-      setImages(updated);
-      
-      setCropBox({ x: 0, y: 0, w: cropBox.w, h: cropBox.h });
-      setActiveHandle(null);
-    }
   };
 
   const handleImgMouseDown = (e) => {
@@ -236,14 +179,6 @@ export default function GifMakerApp() {
       x: clientX - selectedMedia.imgPos.x, 
       y: clientY - selectedMedia.imgPos.y 
     });
-  };
-
-  const handleImgMouseMove = (e) => {
-    if (!isImgDragging || !selectedMedia) return;
-    const nextX = e.clientX - imgDragStart.x;
-    const nextY = e.clientY - imgDragStart.y;
-    selectedMedia.imgPos = { x: nextX, y: nextY };
-    setImages([...images]);
   };
 
   const handlePreviewPlay = async () => {
@@ -264,7 +199,7 @@ export default function GifMakerApp() {
     setIsPlaying(false); 
   };
 
-  // 🎬 [궁극기] 스크린샷(캡처) 버리고, Canvas 도화지에 직접 픽셀 렌더링하기!
+  // 🎬 [최종 보스] 사진별 독립 자막 + 명도 하얘짐 버그 완벽 방어 렌더링!
   const handleBakeGif = async () => {
     if (images.length === 0) {
       alert("굽기 전에 사진이나 영상을 먼저 올려줘!");
@@ -278,19 +213,16 @@ export default function GifMakerApp() {
     targetNode.scrollIntoView({ behavior: 'smooth', block: 'center' });
     await new Promise(resolve => setTimeout(resolve, 800)); 
 
-    // 🎯 [핵심] 1.5배 고화질 뻥튀기를 위한 scaleFactor 정의 완료!
     const scaleFactor = 1.5; 
     const baseWidth = targetNode.offsetWidth;
     const baseHeight = targetNode.offsetHeight;
-    
-    // 도화지 크기는 1.5배 크게!
     const width = baseWidth * scaleFactor;
     const height = baseHeight * scaleFactor;
 
     try {
       const gif = new GIF({
         workers: 4, 
-        quality: 1, // 최고 화질
+        quality: 1, 
         dither: 'FloydSteinberg', 
         workerScript: '/gif.worker.js',
         width: width,
@@ -309,11 +241,9 @@ export default function GifMakerApp() {
 
         await new Promise(resolve => setTimeout(resolve, 800));
 
-        // 1. 도화지 배경 칠하기
         ctx.fillStyle = '#1f2937'; 
         ctx.fillRect(0, 0, width, height);
 
-        // 2. 사진 원본 데이터 불러오기
         const img = new Image();
         img.crossOrigin = 'anonymous';
         img.src = currentImg.url;
@@ -322,11 +252,15 @@ export default function GifMakerApp() {
           img.onerror = resolve; 
         });
 
-        // 3. 🎨 픽셀 그리기 시작 (1.5배 확대 스케일 적용!)
         ctx.save();
         ctx.scale(scaleFactor, scaleFactor); 
         
-        ctx.filter = `blur(${currentImg.blur || 0}px) contrast(${currentImg.contrast || 100}%) brightness(${currentImg.brightness || 100}%) saturate(${currentImg.saturate || 100}%)`;
+        // 🎯 [해결 3] 명도/대비 수치를 0~200% 정석 백분율 값으로 안전하게 변환하여 하얘짐 방지!
+        const b = currentImg.brightness !== undefined ? currentImg.brightness : 100;
+        const c = currentImg.contrast !== undefined ? currentImg.contrast : 100;
+        const s = currentImg.saturate !== undefined ? currentImg.saturate : 100;
+        const bl = currentImg.blur || 0;
+        ctx.filter = `blur(${bl}px) contrast(${c}%) brightness(${b}%) saturate(${s}%)`;
         
         const centerX = baseWidth / 2;
         const centerY = baseHeight / 2;
@@ -345,52 +279,48 @@ export default function GifMakerApp() {
         ctx.drawImage(img, drawX, drawY, drawW, drawH);
         ctx.restore(); 
 
-        // 4. ✍️ 자막 그리기 (글자 크기, 위치, 그림자 모두 scaleFactor 비례해서 1.5배 적용!)
+        // ✍️ [핵심 2] 사진별로 저장된 독립된 자막 설정값을 꺼내서 그림!
         if (currentImg.subtitle) {
           ctx.save();
-          ctx.globalAlpha = textOpacity / 100;
-          ctx.font = `${isItalic ? 'italic ' : ''}bold ${fontSize * scaleFactor}px ${fontFamily.replace(/['"]/g, '')}`;
+          ctx.globalAlpha = (currentImg.textOpacity ?? 100) / 100;
+          ctx.font = `${currentImg.isItalic ? 'italic ' : ''}bold ${(currentImg.fontSize || 40) * scaleFactor}px ${(currentImg.fontFamily || '"Jua", sans-serif').replace(/['"]/g, '')}`;
           ctx.textBaseline = 'top';
           ctx.textAlign = 'left';
 
           const tx = textPos.x * scaleFactor;
           const ty = textPos.y * scaleFactor;
 
-          // 4-1. 자막 배경
-          if (hasBackground) {
+          if (currentImg.hasBackground) {
             const metrics = ctx.measureText(currentImg.subtitle);
-            ctx.fillStyle = bgColor;
-            ctx.fillRect(tx - (5 * scaleFactor), ty - (2 * scaleFactor), metrics.width + (10 * scaleFactor), (fontSize * scaleFactor) + (10 * scaleFactor));
+            ctx.fillStyle = currentImg.bgColor || '#000000';
+            ctx.fillRect(tx - (5 * scaleFactor), ty - (2 * scaleFactor), metrics.width + (10 * scaleFactor), ((currentImg.fontSize || 40) * scaleFactor) + (10 * scaleFactor));
           }
 
-          // 4-2. 그림자 설정
           ctx.shadowColor = 'transparent';
           ctx.shadowBlur = 0;
           ctx.shadowOffsetX = 0;
           ctx.shadowOffsetY = 0;
 
-          if (hasShadow) {
+          if (currentImg.hasShadow) {
             ctx.shadowColor = 'rgba(0,0,0,0.5)';
             ctx.shadowBlur = 4 * scaleFactor;
             ctx.shadowOffsetX = 2 * scaleFactor;
             ctx.shadowOffsetY = 2 * scaleFactor;
           }
 
-          // 4-3. 테두리
-          if (hasStroke) {
+          if (currentImg.hasStroke) {
             ctx.shadowColor = 'transparent'; 
-            ctx.strokeStyle = strokeColor;
-            // 🎯 [수정] 1.5배 뻥튀기된 걸 원복시키기 위해 scaleFactor로 한 번 나눠줌! (또는 숫자를 조절!)
-            ctx.lineWidth = (strokeWidth * 2); 
+            ctx.strokeStyle = currentImg.strokeColor || '#000000';
+            // 🎯 [해결 2] 테두리가 두꺼워 보이지 않도록 얇게 깎아줌!
+            ctx.lineWidth = Math.max(1, (currentImg.strokeWidth || 2) * scaleFactor * 0.6); 
             ctx.strokeText(currentImg.subtitle, tx, ty);
             
-            if (hasShadow) {
+            if (currentImg.hasShadow) {
               ctx.shadowColor = 'rgba(0,0,0,0.5)';
             }
           }
 
-          // 4-4. 글자 알맹이 색
-          ctx.fillStyle = textColor;
+          ctx.fillStyle = currentImg.textColor || '#ffffff';
           ctx.fillText(currentImg.subtitle, tx, ty);
 
           ctx.restore();
@@ -411,7 +341,7 @@ export default function GifMakerApp() {
       gif.render();
     } catch (error) {
       console.error(error);
-      alert('에러 원인: ' + (error.message || error));
+      alert('오류가 발생하였습니다.');
     }
   };
 
@@ -519,54 +449,12 @@ export default function GifMakerApp() {
                         setSelectedMedia(img);
                         setText(img.subtitle || ""); 
                       }}
-                      draggable 
-                      onDragStart={(e) => (dragItem.current = index)}
-                      onDragEnter={(e) => (dragOverItem.current = index)}
-                      onDragEnd={handleSort}
-                      onDragOver={(e) => e.preventDefault()}
-                      onTouchStart={() => {
-                        dragItem.current = index;
-                        dragOverItem.current = index;
-                        isSortDragging.current = false; 
-                        pressTimer.current = setTimeout(() => {
-                          isSortDragging.current = true; 
-                        }, 300);
-                      }}
-                      onTouchMove={(e) => {
-                        if (!isSortDragging.current) { 
-                          clearTimeout(pressTimer.current); 
-                          return; 
-                        }
-                        const touch = e.touches[0];
-                        const target = document.elementFromPoint(touch.clientX, touch.clientY);
-                        const dropZone = target?.closest('[data-index]'); 
-                        if (dropZone) {
-                          dragOverItem.current = Number(dropZone.getAttribute('data-index')); 
-                        }
-                      }}
-                      onTouchEnd={() => {
-                        clearTimeout(pressTimer.current);
-                        if (isSortDragging.current && dragItem.current !== dragOverItem.current) { 
-                          handleSort();
-                        }
-                        isSortDragging.current = false; 
-                        dragItem.current = null;
-                        dragOverItem.current = null;
-                      }}
-                      className="relative w-24 h-24 rounded-lg overflow-hidden border-2 border-gray-200 shadow-md cursor-pointer active:cursor-grabbing hover:border-blue-400 transition-colors"
+                      className="relative w-24 h-24 rounded-lg overflow-hidden border-2 border-gray-200 shadow-md cursor-pointer hover:border-blue-400 transition-colors"
                     >
                       {img.type === 'video' ? (
-                        <video 
-                          src={img.url} className="w-full h-full object-cover" muted 
-                          draggable={false}
-                          style={{ pointerEvents: 'none', WebkitTouchCallout: 'none', WebkitUserDrag: 'none', userSelect: 'none' }}
-                        />
+                        <video src={img.url} className="w-full h-full object-cover" muted draggable={false} />
                       ) : (
-                        <img 
-                          src={img.url} alt={`썸네일 ${index}`} className="w-full h-full object-cover" 
-                          draggable={false}
-                          style={{ pointerEvents: 'none', WebkitTouchCallout: 'none', WebkitUserDrag: 'none', userSelect: 'none' }}
-                        />
+                        <img src={img.url} alt={`썸네일 ${index}`} className="w-full h-full object-cover" draggable={false} />
                       )}
                       <div className="absolute top-0 left-0 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded-br-md font-bold pointer-events-none">
                         {index + 1}
@@ -621,54 +509,10 @@ export default function GifMakerApp() {
               aspectRatio: `${previewSize.width} / ${previewSize.height}`, 
               touchAction: 'none' 
             }} 
-            onTouchStart={(e) => {
-              if (e.target.closest('button')) return;
-              
-              if (e.touches.length === 2) {
-                const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-                previewRef.current.pinchStartDist = dist;
-                setSelectedMedia(prev => {
-                  previewRef.current.pinchStartScale = prev.scale || 1;
-                  return prev;
-                });
-              } else if (e.touches.length === 1) {
-                handleImgMouseDown(e); 
-              }
-            }}
-            onTouchMove={(e) => {
-              if (e.touches.length === 2) {
-                const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-                const startDist = previewRef.current.pinchStartDist || dist;
-                const startScale = previewRef.current.pinchStartScale || 1;
-                
-                let newScale = startScale * (dist / startDist);
-                newScale = Math.max(0.1, Math.min(newScale, 5));
-                
-                setSelectedMedia(prev => ({ ...prev, scale: Number(newScale.toFixed(2)) }));
-                
-              } else if (e.touches.length === 1) {
-                handleMouseMove(e); 
-              }
-            }}
-            onTouchEnd={(e) => {
-              previewRef.current.pinchStartDist = null;
-              setSelectedMedia(prev => {
-                if (prev) {
-                  setImages(prevImages => prevImages.map(img => img.id === prev.id ? prev : img));
-                }
-                return prev; 
-              });
-              handleMouseUp(e); 
-            }}
           >
             {selectedMedia ? (
               <>
-                <div className="absolute inset-0 pointer-events-none z-10 opacity-25" style={{ display: selectedMedia.noise > 0 ? 'block' : 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`, filter: `contrast(${100 + selectedMedia.noise * 8}%)` }} />
-
-                <div 
-                  className="w-full h-full overflow-hidden flex items-start justify-start relative pointer-events-none"
-                  style={{ touchAction: 'none' }} 
-                >
+                <div className="w-full h-full overflow-hidden flex items-start justify-start relative pointer-events-none" style={{ touchAction: 'none' }}>
                   <div
                     className="absolute pointer-events-none"
                     style={{
@@ -677,15 +521,14 @@ export default function GifMakerApp() {
                       transformOrigin: 'center'
                     }}
                   >
-                    {/* 💡 사파리가 헷갈려하던 WebkitFilter를 깔끔하게 삭제했어! (하얘지는 버그 완벽 차단) */}
                     {selectedMedia.type === 'video' ? (
                       <video 
                         src={selectedMedia.url} autoPlay loop muted playsInline 
                         draggable={false} 
                         style={{ 
                           width: '100%', height: '100%', objectFit: 'contain',
-                          pointerEvents: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', WebkitUserDrag: 'none', userSelect: 'none', touchAction: 'none',
-                          filter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast || 100}%) brightness(${selectedMedia.brightness || 100}%) saturate(${selectedMedia.saturate || 100}%)`
+                          pointerEvents: 'none',
+                          filter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast ?? 100}%) brightness(${selectedMedia.brightness ?? 100}%) saturate(${selectedMedia.saturate ?? 100}%)`
                         }}
                       />
                     ) : (
@@ -693,61 +536,30 @@ export default function GifMakerApp() {
                         src={selectedMedia.url} draggable={false} 
                         style={{ 
                           width: '100%', height: '100%', objectFit: 'contain',
-                          pointerEvents: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', WebkitUserDrag: 'none', userSelect: 'none', touchAction: 'none',
-                          filter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast || 100}%) brightness(${selectedMedia.brightness || 100}%) saturate(${selectedMedia.saturate || 100}%)`
+                          pointerEvents: 'none',
+                          filter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast ?? 100}%) brightness(${selectedMedia.brightness ?? 100}%) saturate(${selectedMedia.saturate ?? 100}%)`
                         }} 
                       />
                     )}
                   </div>
                 </div>
                 
+                {/* ✍️ 화면 미리보기 자막 (사진별 독립 속성 적용) */}
                 <div 
-                  draggable={false}
-                  onPointerDown={(e) => {
-                    e.stopPropagation();
-                    e.target.setPointerCapture(e.pointerId);
-                    previewRef.current.isTextDragging = true;
-                    previewRef.current.startX = e.clientX;
-                    previewRef.current.startY = e.clientY;
-                    previewRef.current.initTextX = textPos.x || 0; 
-                    previewRef.current.initTextY = textPos.y || 0;
-                  }}
-                  onPointerMove={(e) => {
-                    e.stopPropagation();
-                    if (!previewRef.current.isTextDragging) return;
-                    const deltaX = e.clientX - previewRef.current.startX;
-                    const deltaY = e.clientY - previewRef.current.startY;
-                    setTextPos({ 
-                      x: previewRef.current.initTextX + deltaX, 
-                      y: previewRef.current.initTextY + deltaY 
-                    });
-                  }}
-                  onPointerUp={(e) => {
-                    e.stopPropagation();
-                    e.target.releasePointerCapture(e.pointerId);
-                    previewRef.current.isTextDragging = false;
-                  }}
-                  onPointerCancel={(e) => {
-                    e.stopPropagation();
-                    previewRef.current.isTextDragging = false;
-                  }}
-                  className="absolute cursor-move transition-transform duration-75 active:scale-105 z-20 select-none touch-none"
+                  className="absolute cursor-move z-20 select-none touch-none"
                   style={{ 
-                    top: textPos.y, left: textPos.x, color: textColor,
-                    fontFamily: fontFamily, fontSize: `${fontSize}px`, 
-                    fontStyle: isItalic ? 'italic' : 'normal',
-                    opacity: textOpacity / 100,
-                    WebkitTextStroke: hasStroke ? `${strokeWidth}px ${strokeColor}` : '0px transparent',
+                    top: textPos.y, left: textPos.x, 
+                    color: selectedMedia.textColor || '#ffffff',
+                    fontFamily: selectedMedia.fontFamily || '"Jua", sans-serif', 
+                    fontSize: `${selectedMedia.fontSize || 40}px`, 
+                    fontStyle: selectedMedia.isItalic ? 'italic' : 'normal',
+                    opacity: (selectedMedia.textOpacity ?? 100) / 100,
+                    WebkitTextStroke: selectedMedia.hasStroke ? `${selectedMedia.strokeWidth || 2}px ${selectedMedia.strokeColor || '#000000'}` : '0px transparent',
                     paintOrder: 'stroke fill', 
-                    textShadow: hasShadow ? '2px 2px 4px rgba(0,0,0,0.5)' : 'none',
-                    backgroundColor: hasBackground ? bgColor : 'transparent',
-                    padding: hasBackground ? '5px 10px' : '0px',
+                    textShadow: selectedMedia.hasShadow ? '2px 2px 4px rgba(0,0,0,0.5)' : 'none',
+                    backgroundColor: selectedMedia.hasBackground ? (selectedMedia.bgColor || '#000000') : 'transparent',
+                    padding: selectedMedia.hasBackground ? '5px 10px' : '0px',
                     borderRadius: '4px',
-                    userSelect: 'none',
-                    WebkitUserSelect: 'none', 
-                    touchAction: 'none',
-                    WebkitUserDrag: 'none',
-                    WebkitTouchCallout: 'none',
                   }}
                 >
                   {text}
@@ -757,9 +569,6 @@ export default function GifMakerApp() {
                   <div 
                     onMouseDown={(e) => e.stopPropagation()}
                     onTouchStart={(e) => e.stopPropagation()}
-                    onMouseMove={(e) => e.stopPropagation()}
-                    onTouchMove={(e) => e.stopPropagation()}
-                    onWheel={(e) => e.stopPropagation()}
                     className={`absolute left-4 right-4 bg-black/80 backdrop-blur-md rounded-xl p-4 z-30 border border-white/10 flex flex-col gap-3 text-white text-xs max-h-40 overflow-y-auto shadow-2xl transition-all duration-300 ${isPanelTop ? 'top-4' : 'bottom-4'}`}
                   >
                     <div className="flex justify-between items-center border-b border-white/10 pb-2">
@@ -773,10 +582,10 @@ export default function GifMakerApp() {
                         {activeTab === 'text' && '자막 설정'}
                       </span>
                       <div className="flex gap-2">
-                        <button type="button" onClick={() => setIsPanelTop(!isPanelTop)} className="bg-white/10 hover:bg-white/20 px-2 py-0.5 rounded font-bold text-sm transition-colors">
+                        <button type="button" onClick={() => setIsPanelTop(!isPanelTop)} className="bg-white/10 hover:bg-white/20 px-2 py-0.5 rounded font-bold text-sm">
                           {isPanelTop ? '아래로' : '위로'}
                         </button>
-                        <button type="button" onClick={() => setActiveTab(null)} className="bg-white/10 hover:bg-white/20 px-2 py-0.5 rounded font-bold text-sm text-red-300 hover:text-red-100 transition-colors">
+                        <button type="button" onClick={() => setActiveTab(null)} className="bg-white/10 hover:bg-white/20 px-2 py-0.5 rounded font-bold text-sm text-red-300">
                           ✕
                         </button>
                       </div>
@@ -784,21 +593,21 @@ export default function GifMakerApp() {
 
                     {activeTab !== 'text' && (
                       <div className="flex items-center gap-4 w-full">
-                      <input 
-                        type="range" 
-                        min={activeTab === 'scale' ? "0.1" : activeTab === 'contrast' || activeTab === 'brightness' ? "50" : "0"} 
-                        max={activeTab === 'scale' ? "4" : activeTab === 'contrast' || activeTab === 'brightness' ? "150" : activeTab === 'saturate' ? "200" : activeTab === 'blur' ? "4" : "10"} 
-                        step={activeTab === 'scale' || activeTab === 'blur' ? "0.1" : "1"} 
-                        value={selectedMedia[activeTab] || ""} 
-                        className="w-full accent-purple-400 cursor-pointer h-1.5 bg-white/20 rounded-lg appearance-none"
-                        onChange={(e) => { 
-                          const numValue = Number(e.target.value);
-                          const updatedMedia = { ...selectedMedia, [activeTab]: numValue };
-                          setSelectedMedia(updatedMedia); 
-                          setImages(prev => prev.map(img => img.id === updatedMedia.id ? updatedMedia : img)); 
-                        }} 
-                      />
-                        <span className="w-12 text-right font-mono">{selectedMedia[activeTab]}{activeTab === 'scale' ? '배' : activeTab === 'blur' ? 'px' : activeTab === 'noise' ? '단' : '%'}</span>
+                        <input 
+                          type="range" 
+                          min={activeTab === 'scale' ? "0.1" : activeTab === 'contrast' || activeTab === 'brightness' ? "50" : "0"} 
+                          max={activeTab === 'scale' ? "4" : activeTab === 'contrast' || activeTab === 'brightness' ? "150" : activeTab === 'saturate' ? "200" : activeTab === 'blur' ? "4" : "10"} 
+                          step={activeTab === 'scale' || activeTab === 'blur' ? "0.1" : "1"} 
+                          value={selectedMedia[activeTab] ?? (activeTab === 'contrast' || activeTab === 'brightness' || activeTab === 'saturate' ? 100 : 0)} 
+                          className="w-full accent-purple-400 cursor-pointer h-1.5 bg-white/20 rounded-lg appearance-none"
+                          onChange={(e) => { 
+                            const numValue = Number(e.target.value);
+                            const updatedMedia = { ...selectedMedia, [activeTab]: numValue };
+                            setSelectedMedia(updatedMedia); 
+                            setImages(prev => prev.map(img => img.id === updatedMedia.id ? updatedMedia : img)); 
+                          }} 
+                        />
+                        <span className="w-12 text-right font-mono">{selectedMedia[activeTab] ?? 100}{activeTab === 'scale' ? '배' : activeTab === 'blur' ? 'px' : '%'}</span>
                       </div>
                     )}
 
@@ -806,145 +615,160 @@ export default function GifMakerApp() {
                       <div className="flex flex-col gap-3 w-full mt-2">
                         <div className="flex flex-wrap gap-2 items-center justify-between bg-white/5 p-2 rounded-lg border border-white/10">
                           <input type="text" value={selectedMedia?.subtitle || ""} 
-                            onClick={(e) => e.stopPropagation()} 
-                            onTouchStart={(e) => e.stopPropagation()} 
                             onChange={(e) => { 
                               const newText = e.target.value; setText(newText); 
                               const updatedImages = images.map(img => img.id === selectedMedia.id ? { ...img, subtitle: newText } : img); 
                               setImages(updatedImages); 
                               setSelectedMedia(prev => ({ ...prev, subtitle: newText})); 
                             }} 
-                            className="flex-1 px-2 py-1.5 bg-black/30 border border-white/20 rounded text-white text-xs focus:outline-none focus:border-purple-400" placeholder="이 사진의 자막을 입력하세요..." />
-                          <div className="flex items-center gap-1.5 pl-2 border-l border-white/20">
-                            <span className="text-gray-300">폰트:</span>
-                            <select value={fontFamily} onChange={(e) => setFontFamily(e.target.value)} className="bg-black/50 border border-white/20 rounded px-1 py-1 text-xs text-white focus:outline-none">
-                              <option value='"JoseonGulim", sans-serif'>조선굴림체</option>
-                              <option value='"Hangyore", sans-serif'>한겨레결체</option>
-                              <option value='"Iropke Batang", serif'>이롭게 바탕체</option>
-                              <option value='"Gowun Dodum", sans-serif'>단정한 고운돋움</option>
-                              <option value='"Jua", sans-serif'>레트로 간판(주아)</option>
-                              <option value='"Hi Melody", cursive'>삐뚤빼뚤 손글씨</option>
-                              <option value='"Dongle", sans-serif'>귀여운 동글</option>
-                              <option value='"Libre Baskerville", serif'>바스커빌체</option>
-                              <option value='"Open Sans", sans-serif'>오픈산스체</option>
-                            </select>
-                          </div>
-                          <div className="flex items-center gap-1.5 pl-2 border-l border-white/20">
-                            <span className="text-gray-300">색상:</span>
-                            <input type="color" value={textColor} onChange={(e) => setTextColor(e.target.value)} className="w-5 h-5 cursor-pointer bg-transparent border-0" />
-                          </div>
+                            className="flex-1 px-2 py-1.5 bg-black/30 border border-white/20 rounded text-white text-xs" placeholder="이 사진의 자막을 입력하세요..." />
+                          
+                          {/* 폰트 선택 */}
+                          <select 
+                            value={selectedMedia.fontFamily || '"Jua", sans-serif'} 
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              const updated = { ...selectedMedia, fontFamily: val };
+                              setSelectedMedia(updated);
+                              setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
+                            }} 
+                            className="bg-black/50 border border-white/20 rounded px-1.5 py-1 text-xs text-white"
+                          >
+                            <option value='"JoseonGulim", sans-serif'>조선굴림체</option>
+                            <option value='"Hangyore", sans-serif'>한겨레결체</option>
+                            <option value='"Iropke Batang", serif'>이롭게 바탕체</option>
+                            <option value='"Gowun Dodum", sans-serif'>단정한 고운돋움</option>
+                            <option value='"Jua", sans-serif'>레트로 간판(주아)</option>
+                            <option value='"Hi Melody", cursive'>삐뚤빼뚤 손글씨</option>
+                            <option value='"Dongle", sans-serif'>귀여운 동글</option>
+                            <option value='"Libre Baskerville", serif'>바스커빌체</option>
+                            <option value='"Open Sans", sans-serif'>오픈산스체</option>
+                          </select>
+
+                          {/* 글자 색상 */}
+                          <input 
+                            type="color" 
+                            value={selectedMedia.textColor || '#ffffff'} 
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              const updated = { ...selectedMedia, textColor: val };
+                              setSelectedMedia(updated);
+                              setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
+                            }} 
+                            className="w-5 h-5 cursor-pointer bg-transparent border-0" 
+                          />
                         </div>
 
                         <div className="flex gap-3">
                           <div className="flex-1 flex flex-col gap-2 bg-white/5 p-2 rounded-lg border border-white/10">
                             <div className="flex justify-between items-center">
                               <span className="text-gray-300">글자 크기</span>
-                              <div className="flex items-center gap-1">
-                                <input type="number" min="20" max="100" value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))} className="w-12 px-1 py-0.5 text-right bg-black/50 border border-white/20 rounded text-white font-mono outline-none focus:border-purple-400" />
-                                <span className="text-gray-400">px</span>
-                              </div>
+                              <input type="number" min="20" max="100" value={selectedMedia.fontSize || 40} onChange={(e) => {
+                                const val = Number(e.target.value);
+                                const updated = { ...selectedMedia, fontSize: val };
+                                setSelectedMedia(updated);
+                                setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
+                              }} className="w-12 px-1 py-0.5 text-right bg-black/50 border border-white/20 rounded text-white font-mono" />
                             </div>
-                            <input type="range" min="20" max="100" value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))} className="w-full accent-purple-400 cursor-pointer" />
+                            <input type="range" min="20" max="100" value={selectedMedia.fontSize || 40} onChange={(e) => {
+                              const val = Number(e.target.value);
+                              const updated = { ...selectedMedia, fontSize: val };
+                              setSelectedMedia(updated);
+                              setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
+                            }} className="w-full accent-purple-400 cursor-pointer" />
                           </div>
 
                           <div className="flex-1 flex flex-col gap-2 bg-white/5 p-2 rounded-lg border border-white/10">
                             <div className="flex justify-between items-center">
                               <span className="text-gray-300">투명도</span>
-                              <div className="flex items-center gap-1">
-                                <input type="number" min="10" max="100" value={textOpacity} onChange={(e) => setTextOpacity(Number(e.target.value))} className="w-12 px-1 py-0.5 text-right bg-black/50 border border-white/20 rounded text-white font-mono outline-none focus:border-purple-400" />
-                                <span className="text-gray-400">%</span>
-                              </div>
+                              <input type="number" min="10" max="100" value={selectedMedia.textOpacity ?? 100} onChange={(e) => {
+                                const val = Number(e.target.value);
+                                const updated = { ...selectedMedia, textOpacity: val };
+                                setSelectedMedia(updated);
+                                setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
+                              }} className="w-12 px-1 py-0.5 text-right bg-black/50 border border-white/20 rounded text-white font-mono" />
                             </div>
-                            <input type="range" min="10" max="100" value={textOpacity} onChange={(e) => setTextOpacity(Number(e.target.value))} className="w-full accent-purple-400 cursor-pointer" />
+                            <input type="range" min="10" max="100" value={selectedMedia.textOpacity ?? 100} onChange={(e) => {
+                              const val = Number(e.target.value);
+                              const updated = { ...selectedMedia, textOpacity: val };
+                              setSelectedMedia(updated);
+                              setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
+                            }} className="w-full accent-purple-400 cursor-pointer" />
                           </div>
                         </div>
 
                         <div className="flex flex-wrap gap-4 items-center bg-white/5 p-2 rounded-lg border border-white/10">
                           <label className="flex items-center gap-1.5 cursor-pointer">
-                            <input type="checkbox" checked={hasBackground} onChange={(e) => setHasBackground(e.target.checked)} className="rounded accent-purple-500 w-3 h-3" />
-                            <span className={hasBackground ? 'text-white font-bold' : 'text-gray-400'}>배경색 추가</span>
+                            <input type="checkbox" checked={selectedMedia.hasBackground || false} onChange={(e) => {
+                              const val = e.target.checked;
+                              const updated = { ...selectedMedia, hasBackground: val };
+                              setSelectedMedia(updated);
+                              setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
+                            }} className="rounded accent-purple-500 w-3 h-3" />
+                            <span>배경색</span>
                           </label>
-                          {hasBackground && <input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="w-5 h-5 cursor-pointer bg-transparent border-0" />}
+                          {selectedMedia.hasBackground && <input type="color" value={selectedMedia.bgColor || '#000000'} onChange={(e) => {
+                            const val = e.target.value;
+                            const updated = { ...selectedMedia, bgColor: val };
+                            setSelectedMedia(updated);
+                            setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
+                          }} className="w-5 h-5 cursor-pointer bg-transparent border-0" />}
+                          
                           <label className="flex items-center gap-1.5 cursor-pointer">
-                            <input type="checkbox" checked={hasStroke} onChange={(e) => setHasStroke(e.target.checked)} className="rounded accent-purple-500 w-3 h-3" />
-                            <span className={hasStroke ? 'text-white font-bold' : 'text-gray-400'}>테두리</span>
+                            <input type="checkbox" checked={selectedMedia.hasStroke ?? true} onChange={(e) => {
+                              const val = e.target.checked;
+                              const updated = { ...selectedMedia, hasStroke: val };
+                              setSelectedMedia(updated);
+                              setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
+                            }} className="rounded accent-purple-500 w-3 h-3" />
+                            <span>테두리</span>
                           </label>
-                          {hasStroke && (
+                          {selectedMedia.hasStroke && (
                             <div className="flex items-center gap-2 pl-2 border-l border-white/20">
-                              <input type="color" value={strokeColor} onChange={(e) => setStrokeColor(e.target.value)} className="w-5 h-5 cursor-pointer bg-transparent border-0" />
-                              <input type="number" min="0" max="10" step="0.1" value={strokeWidth} onChange={(e) => setStrokeWidth(Number(e.target.value))} className="w-12 px-1 py-0.5 text-right bg-black/50 border border-white/20 rounded text-white font-mono outline-none focus:border-purple-400" />
-                              <span className="text-[10px] text-gray-400">px</span>
+                              <input type="color" value={selectedMedia.strokeColor || '#000000'} onChange={(e) => {
+                                const val = e.target.value;
+                                const updated = { ...selectedMedia, strokeColor: val };
+                                setSelectedMedia(updated);
+                                setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
+                              }} className="w-5 h-5 cursor-pointer bg-transparent border-0" />
+                              <input type="number" min="0" max="10" step="0.1" value={selectedMedia.strokeWidth || 2} onChange={(e) => {
+                                const val = Number(e.target.value);
+                                const updated = { ...selectedMedia, strokeWidth: val };
+                                setSelectedMedia(updated);
+                                setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
+                              }} className="w-12 px-1 py-0.5 text-right bg-black/50 border border-white/20 rounded text-white font-mono" />
                             </div>
                           )}
-                          <div className="flex-1"></div>
+
                           <label className="flex items-center gap-1.5 cursor-pointer pl-3 border-l border-white/20">
-                            <input type="checkbox" checked={hasShadow} onChange={(e) => setHasShadow(e.target.checked)} className="rounded accent-purple-500 w-3 h-3" />
-                            <span className={hasShadow ? 'text-white font-bold' : 'text-gray-400'}>그림자</span>
+                            <input type="checkbox" checked={selectedMedia.hasShadow ?? true} onChange={(e) => {
+                              const val = e.target.checked;
+                              const updated = { ...selectedMedia, hasShadow: val };
+                              setSelectedMedia(updated);
+                              setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
+                            }} className="rounded accent-purple-500 w-3 h-3" />
+                            <span>그림자</span>
                           </label>
                           <label className="flex items-center gap-1.5 cursor-pointer pl-3 border-l border-white/20">
-                            <input type="checkbox" checked={isItalic} onChange={(e) => setIsItalic(e.target.checked)} className="rounded accent-purple-500 w-3 h-3" />
-                            <span className={isItalic ? 'text-white font-bold' : 'text-gray-400'}>기울임</span>
+                            <input type="checkbox" checked={selectedMedia.isItalic || false} onChange={(e) => {
+                              const val = e.target.checked;
+                              const updated = { ...selectedMedia, isItalic: val };
+                              setSelectedMedia(updated);
+                              setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
+                            }} className="rounded accent-purple-500 w-3 h-3" />
+                            <span>기울임</span>
                           </label>
                         </div>
                       </div>
                     )}
                   </div>
                 )}
-
-                {isCropMode && (
-                  <div className="absolute inset-0 z-50 pointer-events-none overflow-hidden flex flex-col items-center justify-end pb-4">
-                    <div
-                      className="absolute border-2 border-purple-500 border-dashed pointer-events-auto z-10"
-                      style={{
-                        left: cropBox.x, top: cropBox.y, width: cropBox.w, height: cropBox.h,
-                        boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.6)'
-                      }}
-                    >
-                      {['nw', 'ne', 'sw', 'se'].map(pos => (
-                        <div
-                          key={pos}
-                          className="absolute w-5 h-5 bg-white border-2 border-gray-800 shadow-md"
-                          style={{
-                            top: pos.includes('n') ? -10 : 'auto',
-                            bottom: pos.includes('s') ? -10 : 'auto',
-                            left: pos.includes('w') ? -10 : 'auto',
-                            right: pos.includes('e') ? -10 : 'auto',
-                            cursor: `${pos}-resize`
-                          }}
-                          onMouseDown={(e) => {
-                            e.stopPropagation();
-                            setActiveHandle(pos);
-                            cropStartRef.current = { startX: e.clientX, startY: e.clientY, startBox: { ...cropBox } };
-                          }}
-                          onTouchStart={(e) => {
-                            e.stopPropagation();
-                            setActiveHandle(pos);
-                            cropStartRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY, startBox: { ...cropBox } };
-                          }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
               </>
             ) : (
               <p className="text-gray-400">사진이나 영상을 올려봐!</p>
             )}
           </div>
         </div>
-        
-        {isCropMode && (
-          <div className="w-full flex justify-center mt-4 mb-2 z-50">
-            <button 
-              type="button"
-              onClick={() => setIsCropMode(false)}
-              className="bg-purple-600 text-white px-10 py-3 rounded-full font-black text-lg shadow-xl hover:bg-purple-700 active:scale-95 transition transform animate-bounce"
-            >
-              ✅ 크롭 완료하고 빠져나오기
-            </button>
-          </div>
-        )}
 
         <div className="w-full -mt-6 border border-gray-300 bg-white flex flex-wrap divide-x divide-gray-300 overflow-hidden rounded-b-xl z-20">
           {[
@@ -975,44 +799,22 @@ export default function GifMakerApp() {
 
       <div className="flex gap-4 items-center justify-center my-4">
         <label className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold cursor-pointer transition ${exportFormat === 'gif' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
-          <input 
-            type="radio" name="format" value="gif" 
-            checked={exportFormat === 'gif'} 
-            onChange={() => setExportFormat('gif')}
-            className="hidden" 
-          />
+          <input type="radio" name="format" value="gif" checked={exportFormat === 'gif'} onChange={() => setExportFormat('gif')} className="hidden" />
           🖼️ 움짤(GIF)
         </label>
-
         <label className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold cursor-pointer transition ${exportFormat === 'video' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
-          <input 
-            type="radio" name="format" value="video" 
-            checked={exportFormat === 'video'} 
-            onChange={() => setExportFormat('video')}
-            className="hidden" 
-          />
+          <input type="radio" name="format" value="video" checked={exportFormat === 'video'} onChange={() => setExportFormat('video')} className="hidden" />
           🎬 동영상(WebM/MP4)
         </label>
       </div>
         
       <div className="flex justify-center mt-6 mb-2 z-10">
-        <button
-          type="button"
-          onClick={handlePreviewPlay}
-          disabled={isPlaying}
-          className={`px-8 py-3 rounded-full font-bold text-lg shadow-md transition transform ${
-            isPlaying 
-              ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
-              : 'bg-blue-500 text-white hover:bg-blue-600 active:scale-95'
-          }`}
-        >
+        <button type="button" onClick={handlePreviewPlay} disabled={isPlaying} className={`px-8 py-3 rounded-full font-bold text-lg shadow-md transition transform ${isPlaying ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600 active:scale-95'}`}>
           {isPlaying ? '🍿 미리보기 재생 중...' : '▶️ 미리보기'}
         </button>
       </div>
 
-      <button 
-        onClick={handleBakeGif}
-        className="mt-10 px-10 py-4 bg-black text-white text-xl font-bold rounded-full shadow-2xl hover:bg-gray-800 transform transition hover:scale-105">
+      <button onClick={handleBakeGif} className="mt-10 px-10 py-4 bg-black text-white text-xl font-bold rounded-full shadow-2xl hover:bg-gray-800 transform transition hover:scale-105">
         저장
       </button>
     </div>
