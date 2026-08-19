@@ -380,7 +380,8 @@ export default function GifMakerApp() {
           if (hasStroke) {
             ctx.shadowColor = 'transparent'; 
             ctx.strokeStyle = strokeColor;
-            ctx.lineWidth = strokeWidth * 2 * scaleFactor; 
+            // 🎯 [수정] 1.5배 뻥튀기된 걸 원복시키기 위해 scaleFactor로 한 번 나눠줌! (또는 숫자를 조절!)
+            ctx.lineWidth = (strokeWidth * 2); 
             ctx.strokeText(currentImg.subtitle, tx, ty);
             
             if (hasShadow) {
