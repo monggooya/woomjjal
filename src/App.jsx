@@ -275,21 +275,24 @@ export default function GifMakerApp() {
     const targetNode = previewRef.current;
     if (!targetNode) return;
 
-    // 🎯 화면 크기 가져오기
-    const width = targetNode.offsetWidth;
-    const height = targetNode.offsetHeight;
+    targetNode.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    await new Promise(resolve => setTimeout(resolve, 800)); 
+
+    // 🎯 [화질 상승] 1.5배 크게 그리기 위한 비율 설정!
+    const scaleFactor = 1.5; 
+    const width = targetNode.offsetWidth * scaleFactor;
+    const height = targetNode.offsetHeight * scaleFactor;
 
     try {
       const gif = new GIF({
-        workers: 4, // 💡 [화질 상승 2] 일하는 일꾼을 2명에서 4명으로 늘림 (더 꼼꼼하게 만듦)
-        quality: 1, // 💡 [화질 상승 3] 최고 품질! (숫자가 작을수록 픽셀이 뭉개지지 않음)
-        dither: 'FloydSteinberg', // 💡 [화질 상승 4] 색 섞임 방지 기법
+        workers: 4, 
+        quality: 1, 
+        dither: 'FloydSteinberg',
         workerScript: '/gif.worker.js',
         width: width,
         height: height
       });
 
-      // 💡 [핵심] 보이지 않는 투명 도화지(Canvas)를 만듦!
       const canvas = document.createElement('canvas');
       canvas.width = width;
       canvas.height = height;
@@ -299,97 +302,66 @@ export default function GifMakerApp() {
         const currentImg = images[i];
         setSelectedMedia(currentImg);
         setText(currentImg.subtitle || ""); 
-
+        
         await new Promise(resolve => setTimeout(resolve, 800));
 
-        // 1. 도화지 깨끗하게 까만색으로 칠하기 (배경)
         ctx.fillStyle = '#1f2937'; 
         ctx.fillRect(0, 0, width, height);
 
-        // 2. 사진 원본 데이터 불러오기
         const img = new Image();
         img.crossOrigin = 'anonymous';
         img.src = currentImg.url;
-        await new Promise(resolve => { 
-          img.onload = resolve; 
-          img.onerror = resolve; 
-        });
+        await new Promise(resolve => { img.onload = resolve; img.onerror = resolve; });
 
-        // 3. 🎨 픽셀 그리기 시작! (사파리가 간섭 못 함)
         ctx.save();
-        ctx.scale(scaleFactor, scaleFactor); // 🎯 그림도 1.5배 확대해서 그림
+        ctx.scale(scaleFactor, scaleFactor); // 캔버스 전체를 1.5배 확대
         
-        // 필터와 위치 조정 (아까 그 복잡한 로직)
         ctx.filter = `blur(${currentImg.blur || 0}px) contrast(${currentImg.contrast || 100}%) brightness(${currentImg.brightness || 100}%) saturate(${currentImg.saturate || 100}%)`;
         
         const centerX = targetNode.offsetWidth / 2;
         const centerY = targetNode.offsetHeight / 2;
-
+        
         ctx.translate(centerX, centerY);
         ctx.translate(currentImg.imgPos?.x || 0, currentImg.imgPos?.y || 0);
         ctx.scale(currentImg.scale || 1, currentImg.scale || 1);
         ctx.translate(-centerX, -centerY);
 
-        // 사진이 찌그러지지 않게 쏙 들어가도록 비율(object-fit: contain) 계산!
-        const scale = Math.min(width / img.width, height / img.height);
-        const drawW = img.width * scale;
-        const drawH = img.height * scale;
-        const drawX = (width - drawW) / 2;
-        const drawY = (height - drawH) / 2;
+        const imgScale = Math.min(targetNode.offsetWidth / img.width, targetNode.offsetHeight / img.height);
+        ctx.drawImage(img, (targetNode.offsetWidth - img.width * imgScale) / 2, (targetNode.offsetHeight - img.height * imgScale) / 2, img.width * imgScale, img.height * imgScale);
+        ctx.restore();
 
-        // 픽셀 촥! 그리기
-        ctx.drawImage(img, drawX, drawY, drawW, drawH);
-        ctx.restore(); // 브러시 초기화
-
-        // 4. ✍️ 자막 그리기
+        // ✍️ 자막 그리기 (scaleFactor 적용 완벽 버전)
         if (currentImg.subtitle) {
           ctx.save();
           ctx.globalAlpha = textOpacity / 100;
-          ctx.font = `bold ${fontSize * scaleFactor}px ${fontFamily.replace(/['"]/g, '')}`;
+          ctx.font = `${isItalic ? 'italic ' : ''}bold ${fontSize * scaleFactor}px ${fontFamily.replace(/['"]/g, '')}`;
           ctx.textBaseline = 'top';
           ctx.textAlign = 'left';
 
-          const tx = textPos.x;
-          const ty = textPos.y;
+          const tx = textPos.x * scaleFactor;
+          const ty = textPos.y * scaleFactor;
 
-          // 4-1. 자막 배경
           if (hasBackground) {
             const metrics = ctx.measureText(currentImg.subtitle);
             ctx.fillStyle = bgColor;
-            ctx.fillRect(tx - 5, ty - 2, metrics.width + 10, fontSize + 10);
+            ctx.fillRect(tx - (5 * scaleFactor), ty - (2 * scaleFactor), metrics.width + (10 * scaleFactor), (fontSize * scaleFactor) + (10 * scaleFactor));
           }
-
-          // 🎯 [핵심] 그림자 설정 초기화 (꺼져 있으면 아예 안 나오게!)
-          ctx.shadowColor = 'transparent';
-          ctx.shadowBlur = 0;
-          ctx.shadowOffsetX = 0;
-          ctx.shadowOffsetY = 0;
 
           if (hasShadow) {
             ctx.shadowColor = 'rgba(0,0,0,0.5)';
-            ctx.shadowBlur = 4;
-            ctx.shadowOffsetX = 2;
-            ctx.shadowOffsetY = 2;
+            ctx.shadowBlur = 4 * scaleFactor;
+            ctx.shadowOffsetX = 2 * scaleFactor;
+            ctx.shadowOffsetY = 2 * scaleFactor;
           }
 
-          // 4-2. 테두리
           if (hasStroke) {
-            // 테두리 칠할 때는 그림자 잠시 끄기 (겹침 방지)
-            ctx.shadowColor = 'transparent'; 
             ctx.strokeStyle = strokeColor;
-            ctx.lineWidth = strokeWidth * 2; 
+            ctx.lineWidth = strokeWidth * 2 * scaleFactor; 
             ctx.strokeText(currentImg.subtitle, tx, ty);
-            
-            // 테두리 다 쳤으면 다시 원래 그림자 설정으로 복구
-            if (hasShadow) {
-              ctx.shadowColor = 'rgba(0,0,0,0.5)';
-            }
           }
 
-          // 4-3. 글자 알맹이 색
           ctx.fillStyle = textColor;
           ctx.fillText(currentImg.subtitle, tx, ty);
-
           ctx.restore();
         }
 
@@ -397,7 +369,6 @@ export default function GifMakerApp() {
         await new Promise(resolve => setTimeout(resolve, 100)); 
       }
 
-      // 렌더링 끝! 다운로드!!
       gif.on('finished', (blob) => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
