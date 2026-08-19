@@ -627,9 +627,13 @@ export default function GifMakerApp() {
                 <div className="absolute inset-0 pointer-events-none z-10 opacity-25" style={{ display: selectedMedia.noise > 0 ? 'block' : 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`, filter: `contrast(${100 + selectedMedia.noise * 8}%)` }} />
 
                 {/* 1) 메인 사진 뜨는 곳 */}
-                <div className="w-full h-full overflow-hidden flex items-start justify-start relative">
+                <div 
+                  className="w-full h-full overflow-hidden flex items-start justify-start relative"
+                  // 💡 [추가] 사파리 오지랖(전체 화면 확대) 차단! 두 손가락 줌 뻑뻑함 해결!
+                  style={{ touchAction: 'none' }} 
+                >
                   {selectedMedia.type === 'video' ? (
-                    // 💡 [수술] 껍데기 박스: 크기랑 위치(transform)만 전담!
+                    // 💡 껍데기 박스: 크기랑 위치(transform)만 전담!
                     <div
                       className="absolute pointer-events-none"
                       style={{
@@ -638,27 +642,19 @@ export default function GifMakerApp() {
                         transformOrigin: 'center'
                       }}
                     >
-                      {/* 💡 [특효약 투여!] 비디오 알맹이 */}
                       <video 
                         src={selectedMedia.url} autoPlay loop muted playsInline 
                         style={{ 
                           width: '100%', height: '100%', objectFit: 'contain',
                           
-                          // 1. 일반 브라우저용 필터
+                          // 💡 [캡처 회색화면 해결!] 말썽 피우던 3D 코드 3줄 삭제하고 필터만 남김!
                           filter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast || 100}%) brightness(${selectedMedia.brightness || 100}%) saturate(${selectedMedia.saturate || 100}%)`,
-                          
-                          // 2. 🍎 아이폰 징징이 전용 필터 (Webkit)
-                          WebkitFilter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast || 100}%) brightness(${selectedMedia.brightness || 100}%) saturate(${selectedMedia.saturate || 100}%)`,
-                          
-                          // 3. 🚀 GPU 강제 기상 채찍질! (하드웨어 가속)
-                          transform: 'translateZ(0)',
-                          WebkitTransform: 'translateZ(0)',
-                          willChange: 'filter'
+                          WebkitFilter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast || 100}%) brightness(${selectedMedia.brightness || 100}%) saturate(${selectedMedia.saturate || 100}%)`
                         }}
                       />
                     </div>
                   ) : (
-                    // 💡 [수술] 껍데기 박스: 크기랑 위치(transform)만 전담!
+                    // 💡 껍데기 박스: 크기랑 위치(transform)만 전담!
                     <div
                       className="absolute pointer-events-none"
                       style={{
@@ -667,22 +663,14 @@ export default function GifMakerApp() {
                         transformOrigin: 'center'
                       }}
                     >
-                      {/* 💡 [특효약 투여!] 사진 알맹이 */}
                       <img 
-                        src={selectedMedia.url} draggable={false} 
+                        src={selectedMedia.url} draggable={false} decoding="async" // 쌤 원래 있던 decoding 도 잘 살려둠!
                         style={{ 
                           width: '100%', height: '100%', objectFit: 'contain',
                           
-                          // 1. 일반 브라우저용 필터
+                          // 💡 [캡처 회색화면 해결!] 말썽 피우던 3D 코드 3줄 삭제하고 필터만 남김!
                           filter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast || 100}%) brightness(${selectedMedia.brightness || 100}%) saturate(${selectedMedia.saturate || 100}%)`,
-                          
-                          // 2. 🍎 아이폰 징징이 전용 필터 (Webkit)
-                          WebkitFilter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast || 100}%) brightness(${selectedMedia.brightness || 100}%) saturate(${selectedMedia.saturate || 100}%)`,
-                          
-                          // 3. 🚀 GPU 강제 기상 채찍질! (하드웨어 가속)
-                          transform: 'translateZ(0)',
-                          WebkitTransform: 'translateZ(0)',
-                          willChange: 'filter'
+                          WebkitFilter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast || 100}%) brightness(${selectedMedia.brightness || 100}%) saturate(${selectedMedia.saturate || 100}%)`
                         }} 
                       />
                     </div>
