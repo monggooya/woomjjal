@@ -294,7 +294,6 @@ export default function GifMakerApp() {
         ctx.save();
         ctx.scale(scaleFactor, scaleFactor); 
         
-        // 🎯 명도/대비 수치 안전 방어 (하얘짐 현상 원천 차단)
         const b = currentImg.brightness !== undefined ? currentImg.brightness : 100;
         const c = currentImg.contrast !== undefined ? currentImg.contrast : 100;
         const s = currentImg.saturate !== undefined ? currentImg.saturate : 100;
@@ -580,6 +579,41 @@ export default function GifMakerApp() {
               aspectRatio: `${previewSize.width} / ${previewSize.height}`, 
               touchAction: 'none' 
             }} 
+            onTouchStart={(e) => {
+              if (e.target.closest('button')) return;
+              if (e.touches.length === 2) {
+                const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                previewRef.current.pinchStartDist = dist;
+                setSelectedMedia(prev => {
+                  previewRef.current.pinchStartScale = prev.scale || 1;
+                  return prev;
+                });
+              } else if (e.touches.length === 1) {
+                handleImgMouseDown(e); 
+              }
+            }}
+            onTouchMove={(e) => {
+              if (e.touches.length === 2) {
+                const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                const startDist = previewRef.current.pinchStartDist || dist;
+                const startScale = previewRef.current.pinchStartScale || 1;
+                let newScale = startScale * (dist / startDist);
+                newScale = Math.max(0.1, Math.min(newScale, 5));
+                setSelectedMedia(prev => ({ ...prev, scale: Number(newScale.toFixed(2)) }));
+              } else if (e.touches.length === 1) {
+                handleMouseMove(e); 
+              }
+            }}
+            onTouchEnd={(e) => {
+              previewRef.current.pinchStartDist = null;
+              setSelectedMedia(prev => {
+                if (prev) {
+                  setImages(prevImages => prevImages.map(img => img.id === prev.id ? prev : img));
+                }
+                return prev; 
+              });
+              handleMouseUp(e); 
+            }}
           >
             {selectedMedia ? (
               <>
@@ -771,7 +805,6 @@ export default function GifMakerApp() {
                           </div>
                         </div>
 
-                        {/* 🎯 [복구 완료] 배경색, 테두리, 그림자, 기울임 나란히 예쁘게 정렬된 UI! */}
                         <div className="flex flex-wrap gap-4 items-center bg-white/5 p-2.5 rounded-lg border border-white/10 justify-between">
                           <div className="flex items-center gap-2">
                             <label className="flex items-center gap-1.5 cursor-pointer">
