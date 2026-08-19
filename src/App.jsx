@@ -3,7 +3,6 @@ import * as htmlToImage from 'html-to-image';
 import GIF from 'gif.js';
 
 export default function GifMakerApp() {
-  // 📐 자유로운 비율 조절을 위한 미리보기 박스 크기 상태 
   const [previewSize, setPreviewSize] = useState({ width: 560, height: 315 });
   const [isResizing, setIsResizing] = useState(false);
   const resizeStart = useRef({ width: 0, height: 0, x: 0, y: 0 });
@@ -11,13 +10,11 @@ export default function GifMakerApp() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [exportFormat, setExportFormat] = useState('gif');
 
-  // ✂️ 포토샵식 크롭을 위한 상태들
   const [isCropMode, setIsCropMode] = useState(false);
   const [cropBox, setCropBox] = useState({ x: 0, y: 0, w: 300, h: 300 });
   const [activeHandle, setActiveHandle] = useState(null); 
   const cropStartRef = useRef(null); 
 
-  // ✍️ 자막 관련 상태들
   const [textPos, setTextPos] = useState({ x: 80, y: 150 });
   const [text, setText] = useState('자막을 설정해보세요.');
   const [textColor, setTextColor] = useState('#ffffff');
@@ -46,11 +43,10 @@ export default function GifMakerApp() {
   const [activeTab, setActiveTab] = useState(null);
   const [isPanelTop, setIsPanelTop] = useState(false);
 
-  // 🔲 자막 배경용 상태
   const [hasBackground, setHasBackground] = useState(false);
   const [bgColor, setBgColor] = useState('#000000');
 
-  // 📸 [수술 1] 사진 업로드 시 무식하게 큰 원본을 가볍게 다이어트 시키는 마법!
+  // 📸 [해결 1] 사파리 GPU 폭발 방지! 사진을 600px로 초강력 다이어트!
   const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
@@ -60,18 +56,18 @@ export default function GifMakerApp() {
         if (file.type.startsWith('video')) {
           resolve({
             id: Math.random().toString(36).substr(2, 9),
-            url: URL.createObjectURL(file), // 비디오는 그대로 둠
+            url: URL.createObjectURL(file), 
             type: 'video', duration: 0.5, subtitle: "", scale: 1, imgPos: { x: 0, y: 0 },
             blur: 0, contrast: 100, brightness: 100, saturate: 100, noise: 0
           });
         } else {
-          // 💡 [핵심] 사진은 보이지 않는 도화지(Canvas)에 그려서 가볍게 압축!
           const reader = new FileReader();
           reader.onload = (event) => {
             const img = new Image();
             img.onload = () => {
               const canvas = document.createElement('canvas');
-              const MAX_SIZE = 1000; // 가로세로 최대 1000px로 제한 (화질은 살리고 용량은 대폭 감소!)
+              // 🎯 1000px도 사파리한텐 무거웠다! 움짤 표준 사이즈 600px로 팍 줄임! (절대 안 하얘짐)
+              const MAX_SIZE = 600; 
               let width = img.width;
               let height = img.height;
 
@@ -88,8 +84,7 @@ export default function GifMakerApp() {
               const ctx = canvas.getContext('2d');
               ctx.drawImage(img, 0, 0, width, height);
               
-              // 압축된 가벼운 데이터를 생성! (사파리 GPU 뇌정지 완벽 방지)
-              const optimizedBase64 = canvas.toDataURL('image/jpeg', 0.85);
+              const optimizedBase64 = canvas.toDataURL('image/jpeg', 0.7);
 
               resolve({
                 id: Math.random().toString(36).substr(2, 9),
@@ -251,11 +246,8 @@ export default function GifMakerApp() {
     setImages([...images]);
   };
 
-  // 🎬 전체 미리보기 재생 감독님
   const handlePreviewPlay = async () => {
     if (images.length === 0) return;
-    
-    // 💡 미리보기 중에도 화면이 딴 데로 튀지 않게 중앙 고정!
     if (previewRef.current) {
       previewRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
@@ -266,14 +258,13 @@ export default function GifMakerApp() {
       const currentImg = images[i];
       setSelectedMedia(currentImg);        
       setText(currentImg.subtitle || "");  
-      
       await new Promise(resolve => setTimeout(resolve, currentImg.duration * 1000));
     }
     
     setIsPlaying(false); 
   };
 
-  // 🎬 동영상/움짤 파일로 굽기 함수 (사진 다이어트 덕분에 고화질 캡처 쌉가능!)
+  // 🎬 [최종 보스 수술 완료!] 3연발 헛스윙 기법으로 회색 화면 완전 정복!
   const handleBakeGif = async () => {
     if (images.length === 0) {
       alert("굽기 전에 사진이나 영상을 먼저 올려줘!");
@@ -305,15 +296,22 @@ export default function GifMakerApp() {
         setSelectedMedia(currentImg);
         setText(currentImg.subtitle || ""); 
         
-        await new Promise(resolve => setTimeout(resolve, 500));
-        await new Promise(resolve => requestAnimationFrame(resolve));
-        await new Promise(resolve => setTimeout(resolve, 300));
+        // 🎯 1. 리액트가 화면을 바꿀 때까지 넉넉하게 대기!
+        await new Promise(resolve => setTimeout(resolve, 800));
 
-        // 🎯 사진이 가벼워졌으니 화질을 2배(pixelRatio: 2)로 팍팍 올려도 절대 안 뻗음!
+        // 🎯 2. [사파리 3연발 예열 해킹!] 
+        // 사파리는 처음 캡처 명령을 받으면 회색 화면만 뱉음. 
+        // 그래서 화질 낮춰서 2번 가짜로 찰칵찰칵 찍어서 사파리 엔진을 강제로 깨움!
+        await htmlToImage.toPng(targetNode, { pixelRatio: 0.1 }).catch(()=>{});
+        await new Promise(resolve => setTimeout(resolve, 150));
+        await htmlToImage.toPng(targetNode, { pixelRatio: 0.1 }).catch(()=>{});
+        await new Promise(resolve => setTimeout(resolve, 150));
+
+        // 🎯 3. 이제 엔진이 깨어났으니 찐 캡처 진행!
         const dataUrl = await htmlToImage.toPng(targetNode, { 
           useCORS: true,     
           allowTaint: true,  
-          pixelRatio: 2, // 💡 고화질 부활!
+          pixelRatio: 1.5, 
           skipAutoScale: true,
           width: width, height: height, canvasWidth: width, canvasHeight: height,
           style: { 
@@ -325,6 +323,7 @@ export default function GifMakerApp() {
         const imgElement = new Image();
         imgElement.crossOrigin = 'anonymous';
         imgElement.src = dataUrl;
+        
         await new Promise(resolve => { 
           imgElement.onload = resolve; 
           imgElement.onerror = resolve; 
@@ -378,7 +377,6 @@ export default function GifMakerApp() {
           <span className="text-gray-400 text-sm mt-1">드래그해서 여러 장 선택 가능</span>
         </div>
 
-        {/* 📐 움짤 크기 비율 설정 버튼 */}
         <div className="w-full flex flex-col gap-2 bg-gray-50 p-4 rounded-xl border border-gray-200">
           <span className="text-xs font-bold text-gray-600">이미지 비율:</span>
           <div className="flex gap-2 flex-wrap">
@@ -419,10 +417,8 @@ export default function GifMakerApp() {
           </div>
         </div>
 
-        {/* 📸 썸네일 리스트 & 일괄 변경 컨트롤 패널 */}
         {images.length > 0 && (
           <div className="w-full flex flex-col gap-3 bg-white p-4 rounded-xl border border-gray-200 shadow-sm mb-2 z-10">
-            {/* ⏱️ 일괄 적용 컨트롤러 */}
             <div className="flex justify-between items-center border-b border-gray-100 pb-2">
               <span className="text-sm font-bold text-gray-700">📸 추가된 컷 (총 {images.length}장)</span>
               <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200">
@@ -445,7 +441,6 @@ export default function GifMakerApp() {
               </div>
             </div>
             
-            {/* 기존 썸네일 리스트 */}
             <div className="flex gap-4 overflow-x-auto py-2 px-1 items-center">
               {images.map((img, index) => (
                 <div key={img.id} className="flex items-center gap-3 flex-shrink-0">
@@ -523,7 +518,6 @@ export default function GifMakerApp() {
                     </div>
                   </div>
 
-                  {/* ↔️ 맞교환 화살표 버튼 */}
                   {index < images.length - 1 && (
                     <button
                       type="button"
@@ -545,7 +539,6 @@ export default function GifMakerApp() {
           </div>
         )}
 
-        {/* 📺 메인 미리보기 박스 영역 */}
         <div className="w-full flex items-start justify-center p-4 bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
           <div 
             ref={previewRef}
@@ -602,10 +595,8 @@ export default function GifMakerApp() {
           >
             {selectedMedia ? (
               <>
-                {/* 노이즈 레이어 */}
                 <div className="absolute inset-0 pointer-events-none z-10 opacity-25" style={{ display: selectedMedia.noise > 0 ? 'block' : 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`, filter: `contrast(${100 + selectedMedia.noise * 8}%)` }} />
 
-                {/* 1) 메인 사진 뜨는 곳 (💡 두 손가락 줌 버벅임 완벽 해결 구역!) */}
                 <div 
                   className="w-full h-full overflow-hidden flex items-start justify-start relative pointer-events-none"
                   style={{ touchAction: 'none' }} 
@@ -618,16 +609,15 @@ export default function GifMakerApp() {
                       transformOrigin: 'center'
                     }}
                   >
+                    {/* 💡 사파리가 헷갈려하던 WebkitFilter를 깔끔하게 삭제했어! (하얘지는 버그 완벽 차단) */}
                     {selectedMedia.type === 'video' ? (
                       <video 
                         src={selectedMedia.url} autoPlay loop muted playsInline 
                         draggable={false} 
                         style={{ 
                           width: '100%', height: '100%', objectFit: 'contain',
-                          // 🎯 방어막 5총사 떡칠! (사진 터치 본능 절대 금지)
                           pointerEvents: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', WebkitUserDrag: 'none', userSelect: 'none', touchAction: 'none',
-                          filter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast || 100}%) brightness(${selectedMedia.brightness || 100}%) saturate(${selectedMedia.saturate || 100}%)`,
-                          WebkitFilter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast || 100}%) brightness(${selectedMedia.brightness || 100}%) saturate(${selectedMedia.saturate || 100}%)`
+                          filter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast || 100}%) brightness(${selectedMedia.brightness || 100}%) saturate(${selectedMedia.saturate || 100}%)`
                         }}
                       />
                     ) : (
@@ -635,17 +625,14 @@ export default function GifMakerApp() {
                         src={selectedMedia.url} draggable={false} 
                         style={{ 
                           width: '100%', height: '100%', objectFit: 'contain',
-                          // 🎯 방어막 5총사 떡칠! (사진 터치 본능 절대 금지)
                           pointerEvents: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', WebkitUserDrag: 'none', userSelect: 'none', touchAction: 'none',
-                          filter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast || 100}%) brightness(${selectedMedia.brightness || 100}%) saturate(${selectedMedia.saturate || 100}%)`,
-                          WebkitFilter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast || 100}%) brightness(${selectedMedia.brightness || 100}%) saturate(${selectedMedia.saturate || 100}%)`
+                          filter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast || 100}%) brightness(${selectedMedia.brightness || 100}%) saturate(${selectedMedia.saturate || 100}%)`
                         }} 
                       />
                     )}
                   </div>
                 </div>
                 
-                {/* 3. 자막 레이어 */}
                 <div 
                   draggable={false}
                   onPointerDown={(e) => {
@@ -698,7 +685,6 @@ export default function GifMakerApp() {
                   {text}
                 </div>
 
-                {/* 4. 세팅 조절바 패널 영역 */}
                 {selectedMedia && activeTab && (
                   <div 
                     onMouseDown={(e) => e.stopPropagation()}
@@ -837,7 +823,6 @@ export default function GifMakerApp() {
                   </div>
                 )}
 
-                {/* 5. ✂️ 포토샵식 크롭 오버레이 */}
                 {isCropMode && (
                   <div className="absolute inset-0 z-50 pointer-events-none overflow-hidden flex flex-col items-center justify-end pb-4">
                     <div
@@ -893,7 +878,6 @@ export default function GifMakerApp() {
           </div>
         )}
 
-        {/* 🎛️ 격자무늬 표 모양 메뉴 바 */}
         <div className="w-full -mt-6 border border-gray-300 bg-white flex flex-wrap divide-x divide-gray-300 overflow-hidden rounded-b-xl z-20">
           {[
             { id: 'scale', label: '확대' },
@@ -921,7 +905,6 @@ export default function GifMakerApp() {
         
       </main>
 
-      {/* 저장 포맷 선택 스위치 */}
       <div className="flex gap-4 items-center justify-center my-4">
         <label className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold cursor-pointer transition ${exportFormat === 'gif' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
           <input 
@@ -944,7 +927,6 @@ export default function GifMakerApp() {
         </label>
       </div>
         
-      {/* ▶️ 미리보기 재생 버튼 */}
       <div className="flex justify-center mt-6 mb-2 z-10">
         <button
           type="button"
