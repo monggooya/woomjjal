@@ -309,65 +309,69 @@ export default function GifMakerApp() {
   };
 
   // 🎬 동영상 파일로 굽기 함수
-  const handleBakeVideo = async () => {
+  const handleBakeGif = async () => {
     if (images.length === 0) {
       alert("굽기 전에 사진이나 영상을 먼저 올려줘!");
       return;
     }
 
+    setActiveTab(null); 
+    
+    // 🎯 화면 중앙으로 스크롤 스르륵~ 이동!
+    if (previewRef.current) {
+      previewRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // 🎯 [해결 1] 스크롤 스르륵 내려가는 시간 기다려주기! (이거 안 기다리면 화면 이동하다가 허공 찍혀서 회색됨!)
+      await new Promise(resolve => setTimeout(resolve, 800));
+    }
+    
     try {
-      // 1. htmlToImage로 캡처할 캔버스 생성 준비
-      const canvas = document.createElement('canvas');
-      canvas.width = previewRef.current.offsetWidth;
-      canvas.height = previewRef.current.offsetHeight;
-      const ctx = canvas.getContext('2d');
+      const gif = new GIF({
+        workers: 2,
+        quality: 10, 
+        workerScript: '/gif.worker.js',
+        width: previewRef.current.offsetWidth,
+        height: previewRef.current.offsetHeight
+      });
 
-      // 2. 브라우저 MediaRecorder 세팅
-      const stream = canvas.captureStream(30); // 30fps
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-      const chunks = [];
-
-      mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'video/webm' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'my-problem-solving-video.webm';
-        a.click();
-      };
-
-      mediaRecorder.start();
-
-      // 3. 사진 프레임별로 순차적으로 캔버스에 그려서 녹화하기
       for (let i = 0; i < images.length; i++) {
         const currentImg = images[i];
         setSelectedMedia(currentImg);
         setText(currentImg.subtitle || ""); 
-        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // 사진 렌더링 기다리기
+        await new Promise(resolve => setTimeout(resolve, 800));
 
+        // 🎯 [해결 2: 사파리 엔진 예열!] 첫 번째 캡처 무조건 회색으로 날아가는 버그 막기 위해 가짜로 한 번 찍고 버림!
+        await htmlToImage.toPng(previewRef.current, { pixelRatio: 1 }).catch(() => {});
+
+        // 🎯 찐 캡처!
         const dataUrl = await htmlToImage.toPng(previewRef.current, { 
-          cacheBust: true,
-          useCORS: true,     // 👈 [추가!] 외부 구글 폰트/이미지 보안 장벽 프리패스 옵션!
-          allowTaint: true,   // 👈 [추가!] 혹시 모를 캔버스 오염 에러 방어 방패!
+          useCORS: true,     
+          allowTaint: true,  
+          pixelRatio: 2,
+          skipAutoScale: true, // 사파리 캡처 비율 꼬이는 거 방지!
           style: { borderRadius: '0px' }
         });
+        
         const imgElement = new Image();
         imgElement.src = dataUrl;
         await new Promise(resolve => { imgElement.onload = resolve; });
 
-        // 캔버스에 프레임 그리기
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(imgElement, 0, 0, canvas.width, canvas.height);
-
-        // 지정된 재생 시간만큼 대기
-        await new Promise(resolve => setTimeout(resolve, currentImg.duration * 1000));
+        gif.addFrame(imgElement, { delay: images[i].duration * 1000 });
       }
 
-      mediaRecorder.stop();
+      gif.on('finished', (blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'my-retro-gif.gif';
+        a.click();
+      });
+
+      gif.render();
     } catch (error) {
       console.error(error);
-      alert('오류가 발생하였습니다.');
+      alert('에러 원인: ' + (error.message || error));
     }
   };
 
@@ -656,11 +660,9 @@ export default function GifMakerApp() {
                 {/* 1) 메인 사진 뜨는 곳 */}
                 <div 
                   className="w-full h-full overflow-hidden flex items-start justify-start relative"
-                  // 💡 [추가] 사파리 오지랖(전체 화면 확대) 차단! 두 손가락 줌 뻑뻑함 해결!
                   style={{ touchAction: 'none' }} 
                 >
                   {selectedMedia.type === 'video' ? (
-                    // 💡 껍데기 박스: 크기랑 위치(transform)만 전담!
                     <div
                       className="absolute pointer-events-none"
                       style={{
@@ -671,17 +673,19 @@ export default function GifMakerApp() {
                     >
                       <video 
                         src={selectedMedia.url} autoPlay loop muted playsInline 
+                        draggable={false} // 👈 
                         style={{ 
                           width: '100%', height: '100%', objectFit: 'contain',
                           
-                          // 💡 [캡처 회색화면 해결!] 말썽 피우던 3D 코드 3줄 삭제하고 필터만 남김!
+                          // 🎯 [줌 뻑뻑함 완벽 해결!] 사진 자체의 터치 본능을 싹 다 죽이는 방어막 5총사!
+                          pointerEvents: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', WebkitUserDrag: 'none', userSelect: 'none',
+                          
                           filter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast || 100}%) brightness(${selectedMedia.brightness || 100}%) saturate(${selectedMedia.saturate || 100}%)`,
                           WebkitFilter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast || 100}%) brightness(${selectedMedia.brightness || 100}%) saturate(${selectedMedia.saturate || 100}%)`
                         }}
                       />
                     </div>
                   ) : (
-                    // 💡 껍데기 박스: 크기랑 위치(transform)만 전담!
                     <div
                       className="absolute pointer-events-none"
                       style={{
@@ -691,11 +695,13 @@ export default function GifMakerApp() {
                       }}
                     >
                       <img 
-                        src={selectedMedia.url} draggable={false}
+                        src={selectedMedia.url} draggable={false} 
                         style={{ 
                           width: '100%', height: '100%', objectFit: 'contain',
                           
-                          // 💡 [캡처 회색화면 해결!] 말썽 피우던 3D 코드 3줄 삭제하고 필터만 남김!
+                          // 🎯 [줌 뻑뻑함 완벽 해결!] 사진 자체의 터치 본능을 싹 다 죽이는 방어막 5총사!
+                          pointerEvents: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', WebkitUserDrag: 'none', userSelect: 'none',
+                          
                           filter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast || 100}%) brightness(${selectedMedia.brightness || 100}%) saturate(${selectedMedia.saturate || 100}%)`,
                           WebkitFilter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast || 100}%) brightness(${selectedMedia.brightness || 100}%) saturate(${selectedMedia.saturate || 100}%)`
                         }} 
