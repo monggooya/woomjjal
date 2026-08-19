@@ -50,23 +50,40 @@ export default function GifMakerApp() {
   const [hasBackground, setHasBackground] = useState(false);
   const [bgColor, setBgColor] = useState('#000000');
 
-  const handleImageUpload = (e) => {
+  // 📸 [해결 1] 사진 업로드할 때 임시 주소(blob) 말고 진짜 데이터(Base64)로 변환!
+  const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files);
-    const newMedia = files.map(file => ({
-      id: Math.random().toString(36).substr(2, 9),
-      url: URL.createObjectURL(file),
-      type: file.type.startsWith('video') ? 'video' : 'image',
-      duration: 0.5,
-      subtitle: "",
-      scale: 1,
-      imgPos: { x: 0, y: 0 },
-      blur: 0,
-      contrast: 100,
-      brightness: 100,
-      saturate: 100,
-      noise: 0
-    }));
-    
+    if (files.length === 0) return;
+
+    // 파일을 하나씩 '진짜 데이터(Data URL)'로 변환하는 작업 대기!
+    const newMediaPromises = files.map(file => {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          resolve({
+            id: Math.random().toString(36).substr(2, 9),
+            // 🎯 [핵심] 임시 주소(URL.createObjectURL) 대신 진짜 사진 데이터(event.target.result)를 씀!!
+            url: event.target.result, 
+            type: file.type.startsWith('video') ? 'video' : 'image',
+            duration: 0.5,
+            subtitle: "",
+            scale: 1,
+            imgPos: { x: 0, y: 0 },
+            blur: 0,
+            contrast: 100,
+            brightness: 100,
+            saturate: 100,
+            noise: 0
+          });
+        };
+        // 파일을 Base64 문자열로 읽기 시작!
+        reader.readAsDataURL(file); 
+      });
+    });
+
+    // 모든 변환이 끝날 때까지 기다렸다가 사진첩에 쏙!
+    const newMedia = await Promise.all(newMediaPromises);
+
     setImages(prevImages => {
       const updated = [...prevImages, ...newMedia];
       if (!selectedMedia) setSelectedMedia(updated[0]); 
