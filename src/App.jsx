@@ -50,38 +50,61 @@ export default function GifMakerApp() {
   const [hasBackground, setHasBackground] = useState(false);
   const [bgColor, setBgColor] = useState('#000000');
 
-  // 📸 [해결 1] 사진 업로드할 때 임시 주소(blob) 말고 진짜 데이터(Base64)로 변환!
+  // 📸 [수술 1] 사진 업로드 시 무식하게 큰 원본을 가볍게 다이어트 시키는 마법!
   const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
 
-    // 파일을 하나씩 '진짜 데이터(Data URL)'로 변환하는 작업 대기!
     const newMediaPromises = files.map(file => {
       return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (event) => {
+        if (file.type.startsWith('video')) {
           resolve({
             id: Math.random().toString(36).substr(2, 9),
-            // 🎯 [핵심] 임시 주소(URL.createObjectURL) 대신 진짜 사진 데이터(event.target.result)를 씀!!
-            url: event.target.result, 
-            type: file.type.startsWith('video') ? 'video' : 'image',
-            duration: 0.5,
-            subtitle: "",
-            scale: 1,
-            imgPos: { x: 0, y: 0 },
-            blur: 0,
-            contrast: 100,
-            brightness: 100,
-            saturate: 100,
-            noise: 0
+            url: URL.createObjectURL(file), // 비디오는 그대로 둠
+            type: 'video', duration: 0.5, subtitle: "", scale: 1, imgPos: { x: 0, y: 0 },
+            blur: 0, contrast: 100, brightness: 100, saturate: 100, noise: 0
           });
-        };
-        // 파일을 Base64 문자열로 읽기 시작!
-        reader.readAsDataURL(file); 
+        } else {
+          // 💡 [핵심] 사진은 보이지 않는 도화지(Canvas)에 그려서 가볍게 압축!
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+              const canvas = document.createElement('canvas');
+              const MAX_SIZE = 1000; // 가로세로 최대 1000px로 제한 (화질은 살리고 용량은 대폭 감소!)
+              let width = img.width;
+              let height = img.height;
+
+              if (width > height && width > MAX_SIZE) {
+                height *= MAX_SIZE / width;
+                width = MAX_SIZE;
+              } else if (height > MAX_SIZE) {
+                width *= MAX_SIZE / height;
+                height = MAX_SIZE;
+              }
+
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0, width, height);
+              
+              // 압축된 가벼운 데이터를 생성! (사파리 GPU 뇌정지 완벽 방지)
+              const optimizedBase64 = canvas.toDataURL('image/jpeg', 0.85);
+
+              resolve({
+                id: Math.random().toString(36).substr(2, 9),
+                url: optimizedBase64,
+                type: 'image', duration: 0.5, subtitle: "", scale: 1, imgPos: { x: 0, y: 0 },
+                blur: 0, contrast: 100, brightness: 100, saturate: 100, noise: 0
+              });
+            };
+            img.src = event.target.result;
+          };
+          reader.readAsDataURL(file);
+        }
       });
     });
 
-    // 모든 변환이 끝날 때까지 기다렸다가 사진첩에 쏙!
     const newMedia = await Promise.all(newMediaPromises);
 
     setImages(prevImages => {
@@ -250,7 +273,7 @@ export default function GifMakerApp() {
     setIsPlaying(false); 
   };
 
-  // 🎬 동영상/움짤 파일로 굽기 함수 (아이폰 사파리 완벽 방어 버전!)
+  // 🎬 동영상/움짤 파일로 굽기 함수 (사진 다이어트 덕분에 고화질 캡처 쌉가능!)
   const handleBakeGif = async () => {
     if (images.length === 0) {
       alert("굽기 전에 사진이나 영상을 먼저 올려줘!");
@@ -258,7 +281,6 @@ export default function GifMakerApp() {
     }
 
     setActiveTab(null); 
-    
     const targetNode = previewRef.current;
     if (!targetNode) return;
 
@@ -266,7 +288,6 @@ export default function GifMakerApp() {
     targetNode.scrollIntoView({ behavior: 'smooth', block: 'center' });
     await new Promise(resolve => setTimeout(resolve, 800)); 
 
-    // 🎯 [해결 1: 확대 버그 완벽 차단] 현재 액자의 픽셀 크기를 자로 정확히 재버림!
     const width = targetNode.offsetWidth;
     const height = targetNode.offsetHeight;
 
@@ -284,39 +305,29 @@ export default function GifMakerApp() {
         setSelectedMedia(currentImg);
         setText(currentImg.subtitle || ""); 
         
-        // 🎯 사파리가 화면을 그릴 때까지 두 번, 세 번 확실하게 기다림!
         await new Promise(resolve => setTimeout(resolve, 500));
         await new Promise(resolve => requestAnimationFrame(resolve));
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 300));
 
-        // 🎯 [해결 2: 회색 화면 & 메모리 폭발 차단!] 사파리 캡처 엔진 완벽 통제!
+        // 🎯 사진이 가벼워졌으니 화질을 2배(pixelRatio: 2)로 팍팍 올려도 절대 안 뻗음!
         const dataUrl = await htmlToImage.toPng(targetNode, { 
           useCORS: true,     
           allowTaint: true,  
-          pixelRatio: 1, // 💡 무조건 1! (이거 올리면 아이폰 앱 화면까지 회색으로 뻗음!)
+          pixelRatio: 2, // 💡 고화질 부활!
           skipAutoScale: true,
-          width: width,        // 💡 캡처 가로 픽셀 강제 고정
-          height: height,      // 💡 캡처 세로 픽셀 강제 고정
-          canvasWidth: width,  // 💡 도화지 크기도 강제 고정
-          canvasHeight: height,
+          width: width, height: height, canvasWidth: width, canvasHeight: height,
           style: { 
-            // 💡 캡처할 때만큼은 픽셀을 콱! 박아버려서 이상하게 확대되는 거 원천 차단!
-            width: `${width}px`, 
-            height: `${height}px`,
-            transform: 'none', 
-            borderRadius: '0px',
-            margin: '0',
-            padding: '0'
+            width: `${width}px`, height: `${height}px`,
+            transform: 'none', borderRadius: '0px', margin: '0', padding: '0'
           }
         });
         
         const imgElement = new Image();
         imgElement.crossOrigin = 'anonymous';
         imgElement.src = dataUrl;
-        
         await new Promise(resolve => { 
           imgElement.onload = resolve; 
-          imgElement.onerror = resolve; // 💡 에러 나도 안 멈추고 다음 사진으로 넘어가게 방어!
+          imgElement.onerror = resolve; 
         });
 
         gif.addFrame(imgElement, { delay: images[i].duration * 1000 });
