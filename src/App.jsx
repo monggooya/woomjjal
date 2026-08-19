@@ -400,14 +400,14 @@ export default function GifMakerApp() {
               { label: '(16:9)', w: 560, h: 315 },
               { label: '(4:3)', w: 480, h: 360 },
               { label: '(9:16)', w: 315, h: 560 },
-              { label: '자유', isCrop: true } // 👈 새로 추가된 녀석!
+              { label: '(3:4)', w: 360, h: 480 }, // 💡 [추가] 3:4 비율 완벽 세팅!
+              { label: '자유', isCrop: true }
             ].map((ratio) => (
               <button
                 key={ratio.label}
                 type="button"
                 onClick={() => {
                   if (ratio.isCrop) {
-                    // 💡 핵심: 이미 켜져 있으면 끄고(false), 꺼져 있으면 켜기(true)
                     if (isCropMode) {
                       setIsCropMode(false);
                     } else {
@@ -417,10 +417,11 @@ export default function GifMakerApp() {
                   } else {
                     setIsCropMode(false);
                     setPreviewSize({ width: ratio.w, height: ratio.h });
+                    // 🎯 [자막 미아 구출 작전!] 비율을 바꿀 때 무조건 자막을 왼쪽 상단(0,0)으로 소환!
+                    setTextPos({ x: 0, y: 0 }); 
                   }
                 }}
                 className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition ${
-                  /* 💡 디자인 처리: 자유 크롭 모드일 때도 보라색으로 불이 들어오게 수정! */
                   (ratio.isCrop && isCropMode) || (!ratio.isCrop && previewSize.width === ratio.w && previewSize.height === ratio.h)
                     ? 'bg-purple-600 text-white border-purple-600'
                     : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
@@ -459,107 +460,117 @@ export default function GifMakerApp() {
             </div>
             
             {/* 기존 썸네일 리스트 */}
-            <div className="flex gap-4 overflow-x-auto py-2 px-1">
+            <div className="flex gap-4 overflow-x-auto py-2 px-1 items-center">
               {images.map((img, index) => (
-                <div key={img.id} className="flex flex-col items-center gap-2 flex-shrink-0">
-                  <div 
-                    // 💡 [추가 1] 터치 추적을 위해 태그에 '번호표' 달아주기!
-                    data-index={index} 
+                
+                // 💡 1. 썸네일덩어리 + 화살표를 가로로 나란히 두는 왕 껍데기
+                <div key={img.id} className="flex items-center gap-3 flex-shrink-0">
+                  
+                  {/* 💡 2. [썸네일 위, 시간 아래] 세로로 묶어주는 껍데기 */}
+                  <div className="flex flex-col items-center gap-2">
+                    <div 
+                      data-index={index} 
+                      onClick={() => {
+                        setSelectedMedia(img);
+                        setText(img.subtitle || ""); 
+                      }}
+                      draggable 
+                      onDragStart={(e) => (dragItem.current = index)}
+                      onDragEnter={(e) => (dragOverItem.current = index)}
+                      onDragEnd={handleSort}
+                      onDragOver={(e) => e.preventDefault()}
+                      onTouchStart={() => {
+                        dragItem.current = index;
+                        dragOverItem.current = index;
+                        isSortDragging.current = false; 
+                        pressTimer.current = setTimeout(() => {
+                          isSortDragging.current = true; 
+                        }, 300);
+                      }}
+                      onTouchMove={(e) => {
+                        if (!isSortDragging.current) { 
+                          clearTimeout(pressTimer.current); 
+                          return; 
+                        }
+                        const touch = e.touches[0];
+                        const target = document.elementFromPoint(touch.clientX, touch.clientY);
+                        const dropZone = target?.closest('[data-index]'); 
+                        if (dropZone) {
+                          dragOverItem.current = Number(dropZone.getAttribute('data-index')); 
+                        }
+                      }}
+                      onTouchEnd={() => {
+                        clearTimeout(pressTimer.current);
+                        if (isSortDragging.current && dragItem.current !== dragOverItem.current) { 
+                          handleSort();
+                        }
+                        isSortDragging.current = false; 
+                        dragItem.current = null;
+                        dragOverItem.current = null;
+                      }}
+                      className="relative w-24 h-24 rounded-lg overflow-hidden border-2 border-gray-200 shadow-md cursor-pointer active:cursor-grabbing hover:border-blue-400 transition-colors"
+                    >
+                      {img.type === 'video' ? (
+                        <video 
+                          src={img.url} className="w-full h-full object-cover" muted 
+                          draggable={false}
+                          style={{ pointerEvents: 'none', WebkitTouchCallout: 'none', WebkitUserDrag: 'none', userSelect: 'none' }}
+                        />
+                      ) : (
+                        <img 
+                          src={img.url} alt={`썸네일 ${index}`} className="w-full h-full object-cover" 
+                          draggable={false}
+                          style={{ pointerEvents: 'none', WebkitTouchCallout: 'none', WebkitUserDrag: 'none', userSelect: 'none' }}
+                        />
+                      )}
+                      <div className="absolute top-0 left-0 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded-br-md font-bold pointer-events-none">
+                        {index + 1}
+                      </div>
+                    </div>
                     
-                    onClick={() => {
-                      setSelectedMedia(img);
-                      setText(img.subtitle || ""); 
-                    }}
-                    
-                    // 💻 PC 마우스용 드래그 (쌤 원래 코드 그대로 유지)
-                    draggable 
-                    onDragStart={(e) => (dragItem.current = index)}
-                    onDragEnter={(e) => (dragOverItem.current = index)}
-                    onDragEnd={handleSort}
-                    onDragOver={(e) => e.preventDefault()}
-                    
-                    // 📱 [아이폰 터치용: 꾹~ 누르기 완벽 구현!]
-                    onTouchStart={() => {
-                      dragItem.current = index;
-                      dragOverItem.current = index;
-                      isSortDragging.current = false; // 👈 이름 바꿈!
-
-                      // 0.3초(300ms) 타이머
-                      pressTimer.current = setTimeout(() => {
-                        isSortDragging.current = true; // 👈 이름 바꿈!
-                      }, 300);
-                    }}
-                    
-                    onTouchMove={(e) => {
-                      // 타이머 다 되기 전이면 스크롤로 인정!
-                      if (!isSortDragging.current) { // 👈 이름 바꿈!
-                        clearTimeout(pressTimer.current); 
-                        return; 
-                      }
-                      
-                      const touch = e.touches[0];
-                      const target = document.elementFromPoint(touch.clientX, touch.clientY);
-                      const dropZone = target?.closest('[data-index]'); 
-                      
-                      if (dropZone) {
-                        dragOverItem.current = Number(dropZone.getAttribute('data-index')); 
-                      }
-                    }}
-                    
-                    onTouchEnd={() => {
-                      clearTimeout(pressTimer.current);
-
-                      // 드래그를 진짜 했고, 남의 집으로 이동했을 때만!
-                      if (isSortDragging.current && dragItem.current !== dragOverItem.current) { // 👈 이름 바꿈!
-                        handleSort();
-                      }
-                      
-                      // 초기화
-                      isSortDragging.current = false; // 👈 이름 바꿈!
-                      dragItem.current = null;
-                      dragOverItem.current = null;
-                    }}
-
-                    className="relative w-24 h-24 rounded-lg overflow-hidden border-2 border-gray-200 shadow-md cursor-pointer active:cursor-grabbing hover:border-blue-400 transition-colors"
-                  >
-                    {img.type === 'video' ? (
-                      <video 
-                        src={img.url} className="w-full h-full object-cover" muted 
-                        draggable={false}
-                        style={{ pointerEvents: 'none', WebkitTouchCallout: 'none', WebkitUserDrag: 'none', userSelect: 'none' }}
+                    {/* 컷별 재생 시간 조절 입력창 */}
+                    <div className="flex items-center gap-1 text-sm">
+                      <input 
+                        type="number" 
+                        step="0.1" 
+                        min="0.1"
+                        value={img.duration}
+                        onChange={(e) => handleTimeChange(index, e.target.value)}
+                        className="w-14 px-1 py-0.5 text-center border border-gray-300 rounded bg-white text-gray-800 focus:outline-none focus:border-blue-500"
                       />
-                    ) : (
-                      <img 
-                        src={img.url} alt={`썸네일 ${index}`} className="w-full h-full object-cover" 
-                        draggable={false}
-                        style={{ pointerEvents: 'none', WebkitTouchCallout: 'none', WebkitUserDrag: 'none', userSelect: 'none' }}
-                      />
-                    )}
-                    <div className="absolute top-0 left-0 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded-br-md font-bold pointer-events-none">
-                      {index + 1}
+                      <span className="text-gray-500 font-medium">초</span>
                     </div>
                   </div>
-                  
-                  {/* 💡 [부활 완료!] 컷별 재생 시간 조절 입력창 */}
-                  <div className="flex items-center gap-1 text-sm">
-                    <input 
-                      type="number" 
-                      step="0.1" 
-                      min="0.1"
-                      value={img.duration}
-                      onChange={(e) => handleTimeChange(index, e.target.value)}
-                      className="w-14 px-1 py-0.5 text-center border border-gray-300 rounded bg-white text-gray-800 focus:outline-none focus:border-blue-500"
-                    />
-                    <span className="text-gray-500 font-medium">초</span>
-                  </div>
+                  {/* 👆 여기까지가 썸네일+시간 묶음 끝! */}
+
+                  {/* 🎯 3. [추가된 맞교환 마법 버튼!] */}
+                  {/* 배열의 마지막 사진이 아니면 ↔️ 화살표 버튼을 그려라! */}
+                  {index < images.length - 1 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setImages(prev => {
+                          const newArr = [...prev];
+                          // 앞 사진이랑 뒷 사진 맞교환!
+                          [newArr[index], newArr[index + 1]] = [newArr[index + 1], newArr[index]];
+                          return newArr;
+                        });
+                      }}
+                      className="w-8 h-8 flex items-center justify-center bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 active:scale-90 transition-all z-10 -ml-1"
+                    >
+                      ↔️
+                    </button>
+                  )}
+
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* 📺 메인 미리보기 박스 영역 (이제 style에서 가로세로를 주도적으로 조절!) */}
-        <div className="w-full flex items-start justify-start p-4 bg-gray-50 rounded-xl border border-gray-200 overflow-auto">
+        {/* 📺 메인 미리보기 박스 영역 */}
+        {/* 💡 [수정] overflow-auto 땜에 스크롤 생기던 거 hidden으로 막고 가운데 정렬(justify-center)! */}
+        <div className="w-full flex items-start justify-center p-4 bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
           
           <div 
             ref={previewRef}
@@ -568,10 +579,16 @@ export default function GifMakerApp() {
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
             
-            // 💡 [해결 2] 모바일에서 사진 터치 시 앱 화면 스크롤 원천 차단! (touchAction: 'none')
             className="relative bg-gray-800 rounded-xl overflow-hidden shadow-inner max-w-full z-0"
-            style={{ width: `${previewSize.width}px`, height: `${previewSize.height}px`, touchAction: 'none' }} 
             
+            // 🎯 [아이폰 비율 파괴범 검거!] 고정 px을 지우고, 비율(aspectRatio)을 강제해 줬어!
+            style={{ 
+              width: '100%', // 가로는 화면에 꽉 차게!
+              maxWidth: `${previewSize.width}px`, // PC에서는 너무 커지지 않게 원래 사이즈 제한
+              aspectRatio: `${previewSize.width} / ${previewSize.height}`, // ⭐️ 무슨 일이 있어도 이 비율 유지!
+              touchAction: 'none' 
+            }} 
+          
             onTouchStart={(e) => {
               if (e.target.closest('button')) return;
               
