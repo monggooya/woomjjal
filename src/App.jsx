@@ -540,9 +540,17 @@ export default function GifMakerApp() {
                     </div>
                   </div>
                   
-                  {/* 시간 입력창 등 기존 코드 유지... */}
+                  {/* 💡 [부활 완료!] 컷별 재생 시간 조절 입력창 */}
                   <div className="flex items-center gap-1 text-sm">
-                    {/* ... */}
+                    <input 
+                      type="number" 
+                      step="0.1" 
+                      min="0.1"
+                      value={img.duration}
+                      onChange={(e) => handleTimeChange(index, e.target.value)}
+                      className="w-14 px-1 py-0.5 text-center border border-gray-300 rounded bg-white text-gray-800 focus:outline-none focus:border-blue-500"
+                    />
+                    <span className="text-gray-500 font-medium">초</span>
                   </div>
                 </div>
               ))}
