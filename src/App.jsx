@@ -264,7 +264,7 @@ export default function GifMakerApp() {
     setIsPlaying(false); 
   };
 
-  // 🎬 [최종 보스 수술 완료!] 3연발 헛스윙 기법으로 회색 화면 완전 정복!
+  // 🎬 [궁극기] 스크린샷(캡처) 버리고, Canvas 도화지에 직접 픽셀 렌더링하기!
   const handleBakeGif = async () => {
     if (images.length === 0) {
       alert("굽기 전에 사진이나 영상을 먼저 올려줘!");
@@ -275,63 +275,115 @@ export default function GifMakerApp() {
     const targetNode = previewRef.current;
     if (!targetNode) return;
 
-    // 🎯 화면 정중앙 락온!
-    targetNode.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    await new Promise(resolve => setTimeout(resolve, 800)); 
-
+    // 🎯 화면 크기 가져오기
     const width = targetNode.offsetWidth;
     const height = targetNode.offsetHeight;
 
     try {
       const gif = new GIF({
         workers: 2,
-        quality: 10, 
+        quality: 10, // 초고화질 유지!
         workerScript: '/gif.worker.js',
         width: width,
         height: height
       });
 
+      // 💡 [핵심] 보이지 않는 투명 도화지(Canvas)를 만듦!
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+
       for (let i = 0; i < images.length; i++) {
         const currentImg = images[i];
         setSelectedMedia(currentImg);
         setText(currentImg.subtitle || ""); 
-        
-        // 🎯 1. 리액트가 화면을 바꿀 때까지 넉넉하게 대기!
-        await new Promise(resolve => setTimeout(resolve, 800));
 
-        // 🎯 2. [사파리 3연발 예열 해킹!] 
-        // 사파리는 처음 캡처 명령을 받으면 회색 화면만 뱉음. 
-        // 그래서 화질 낮춰서 2번 가짜로 찰칵찰칵 찍어서 사파리 엔진을 강제로 깨움!
-        await htmlToImage.toPng(targetNode, { pixelRatio: 0.1 }).catch(()=>{});
-        await new Promise(resolve => setTimeout(resolve, 150));
-        await htmlToImage.toPng(targetNode, { pixelRatio: 0.1 }).catch(()=>{});
-        await new Promise(resolve => setTimeout(resolve, 150));
+        // 1. 도화지 깨끗하게 까만색으로 칠하기 (배경)
+        ctx.fillStyle = '#1f2937'; 
+        ctx.fillRect(0, 0, width, height);
 
-        // 🎯 3. 이제 엔진이 깨어났으니 찐 캡처 진행!
-        const dataUrl = await htmlToImage.toPng(targetNode, { 
-          useCORS: true,     
-          allowTaint: true,  
-          pixelRatio: 1.5, 
-          skipAutoScale: true,
-          width: width, height: height, canvasWidth: width, canvasHeight: height,
-          style: { 
-            width: `${width}px`, height: `${height}px`,
-            transform: 'none', borderRadius: '0px', margin: '0', padding: '0'
-          }
-        });
-        
-        const imgElement = new Image();
-        imgElement.crossOrigin = 'anonymous';
-        imgElement.src = dataUrl;
-        
+        // 2. 사진 원본 데이터 불러오기
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = currentImg.url;
         await new Promise(resolve => { 
-          imgElement.onload = resolve; 
-          imgElement.onerror = resolve; 
+          img.onload = resolve; 
+          img.onerror = resolve; 
         });
 
-        gif.addFrame(imgElement, { delay: images[i].duration * 1000 });
+        // 3. 🎨 픽셀 그리기 시작! (사파리가 간섭 못 함)
+        ctx.save();
+        
+        // CSS 필터(명도, 흐림 등)를 Canvas 브러시에 직접 적용!
+        ctx.filter = `blur(${currentImg.blur || 0}px) contrast(${currentImg.contrast || 100}%) brightness(${currentImg.brightness || 100}%) saturate(${currentImg.saturate || 100}%)`;
+
+        // 쌤이 설정한 줌(확대)이랑 위치(드래그) 계산
+        ctx.translate(width / 2, height / 2);
+        ctx.translate(currentImg.imgPos?.x || 0, currentImg.imgPos?.y || 0);
+        ctx.scale(currentImg.scale || 1, currentImg.scale || 1);
+        ctx.translate(-width / 2, -height / 2);
+
+        // 사진이 찌그러지지 않게 쏙 들어가도록 비율(object-fit: contain) 계산!
+        const scale = Math.min(width / img.width, height / img.height);
+        const drawW = img.width * scale;
+        const drawH = img.height * scale;
+        const drawX = (width - drawW) / 2;
+        const drawY = (height - drawH) / 2;
+
+        // 픽셀 촥! 그리기
+        ctx.drawImage(img, drawX, drawY, drawW, drawH);
+        ctx.restore(); // 브러시 초기화
+
+        // 4. ✍️ 자막 그리기
+        if (currentImg.subtitle) {
+          ctx.save();
+          ctx.globalAlpha = textOpacity / 100;
+          // 폰트 설정 (작은 따옴표 제거)
+          ctx.font = `${isItalic ? 'italic ' : ''}bold ${fontSize}px ${fontFamily.replace(/['"]/g, '')}`;
+          ctx.textBaseline = 'top';
+          ctx.textAlign = 'left';
+
+          const tx = textPos.x;
+          const ty = textPos.y;
+
+          // 4-1. 자막 배경
+          if (hasBackground) {
+            const metrics = ctx.measureText(currentImg.subtitle);
+            ctx.fillStyle = bgColor;
+            ctx.fillRect(tx - 5, ty - 2, metrics.width + 10, fontSize + 10);
+          }
+
+          // 4-2. 그림자
+          if (hasShadow) {
+            ctx.shadowColor = 'rgba(0,0,0,0.5)';
+            ctx.shadowOffsetX = 2;
+            ctx.shadowOffsetY = 2;
+            ctx.shadowBlur = 4;
+          }
+
+          // 4-3. 테두리
+          if (hasStroke) {
+            ctx.strokeStyle = strokeColor;
+            ctx.lineWidth = strokeWidth * 2; 
+            ctx.strokeText(currentImg.subtitle, tx, ty);
+          }
+
+          // 4-4. 글자 알맹이 색
+          ctx.fillStyle = textColor;
+          ctx.fillText(currentImg.subtitle, tx, ty);
+
+          ctx.restore();
+        }
+
+        // 5. 내가 직접 그린 완벽한 도화지를 GIF 프레임에 통째로 쑤셔 넣음!!
+        gif.addFrame(canvas, { delay: currentImg.duration * 1000, copy: true });
+        
+        // 화면 진행 상황 보여주기 위해 살짝 대기
+        await new Promise(resolve => setTimeout(resolve, 100)); 
       }
 
+      // 렌더링 끝! 다운로드!!
       gif.on('finished', (blob) => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
