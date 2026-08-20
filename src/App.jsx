@@ -706,7 +706,10 @@ export default function GifMakerApp() {
                         style={{ 
                           width: '100%', height: '100%', objectFit: 'contain',
                           pointerEvents: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', WebkitUserDrag: 'none', userSelect: 'none', touchAction: 'none',
-                          filter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast || 100}%) brightness(${selectedMedia.brightness || 100}%) saturate(${selectedMedia.saturate || 100}%)`
+                          // 🎯 수치가 없을 때 기본값(100%)을 안전하게 잡아주어 GPU 뇌정지 방지
+                          filter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast ?? 100}%) brightness(${selectedMedia.brightness ?? 100}%) saturate(${selectedMedia.saturate ?? 100}%)`,
+                          WebkitBackfaceVisibility: 'hidden', // 💡 GPU 강제 가속 켜서 하얘짐 방지!
+                          transform: 'translateZ(0)'
                         }}
                       />
                     ) : (
@@ -715,7 +718,10 @@ export default function GifMakerApp() {
                         style={{ 
                           width: '100%', height: '100%', objectFit: 'contain',
                           pointerEvents: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', WebkitUserDrag: 'none', userSelect: 'none', touchAction: 'none',
-                          filter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast || 100}%) brightness(${selectedMedia.brightness || 100}%) saturate(${selectedMedia.saturate || 100}%)`
+                          // 🎯 수치가 없을 때 기본값(100%) 안전 방어
+                          filter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast ?? 100}%) brightness(${selectedMedia.brightness ?? 100}%) saturate(${selectedMedia.saturate ?? 100}%)`,
+                          WebkitBackfaceVisibility: 'hidden', // 💡 GPU 강제 가속 켜서 하얘짐 방지!
+                          transform: 'translateZ(0)'
                         }} 
                       />
                     )}
