@@ -434,7 +434,7 @@ export default function GifMakerApp() {
          onTouchEnd={handleMouseUp}>
       
       <header className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 tracking-tight">Gif maker</h1>
+        <h1 className="text-3xl font-bold text-gray-800 tracking-tight">Gif Maker</h1>
       </header>
 
       <main className="w-full max-w-4xl bg-white rounded-2xl shadow-xl p-6 flex flex-col gap-6">
@@ -967,7 +967,9 @@ export default function GifMakerApp() {
                 
               </>
             ) : (
-              <p className="text-gray-400">편집 및 미리보기</p>
+              <div className="flex items-center justify-center h-full">
+                <p className="text-gray-400">편집 및 미리보기</p>
+              </div>
             )}
           </div>
         </div>
@@ -1053,6 +1055,15 @@ export default function GifMakerApp() {
         className="mt-10 px-10 py-4 bg-black text-white text-xl font-bold rounded-full shadow-2xl hover:bg-gray-800 transform transition hover:scale-105">
         저장
       </button>
+
+      {/* 📋 [기능 추가] 단정한 저작권 표시 푸터 */}
+      <footer className="mt-8 mb-4 text-center text-xs text-gray-400">
+        <p>© 2026 Gif Maker. All rights reserved.</p>
+        <p className="mt-1">Educational & Creative Short-form Tool</p>
+      </footer>
+
     </div>
+
+    
   );
 }
