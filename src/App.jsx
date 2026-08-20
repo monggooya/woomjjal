@@ -434,7 +434,7 @@ export default function GifMakerApp() {
          onTouchEnd={handleMouseUp}>
       
       <header className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 tracking-tight">🎬 숏폼 만들기</h1>
+        <h1 className="text-3xl font-bold text-gray-800 tracking-tight">Gif maker</h1>
       </header>
 
       <main className="w-full max-w-4xl bg-white rounded-2xl shadow-xl p-6 flex flex-col gap-6">
