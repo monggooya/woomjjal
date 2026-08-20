@@ -967,7 +967,7 @@ export default function GifMakerApp() {
                 
               </>
             ) : (
-              <p className="text-gray-400">사진이나 영상을 올려봐!</p>
+              <p className="text-gray-400">편집 및 미리보기</p>
             )}
           </div>
         </div>
