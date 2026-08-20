@@ -722,10 +722,47 @@ export default function GifMakerApp() {
                   </div>
                 </div>
                 
+                {/* ✍️ 화면 미리보기 자막 (튕김 현상 완벽 방어 버전) */}
                 <div 
                   draggable={false}
-                  onMouseDown={handleMouseDown}
-                  onTouchStart={handleMouseDown}
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    e.target.setPointerCapture(e.pointerId);
+                    previewRef.current.isTextDragging = true;
+                    // 🎯 손가락이 처음 닿은 화면 좌표와 당시 자막의 위치를 정확히 기억!
+                    previewRef.current.startX = e.clientX;
+                    previewRef.current.startY = e.clientY;
+                    previewRef.current.initTextX = textPos.x; 
+                    previewRef.current.initTextY = textPos.y;
+                  }}
+                  onPointerMove={(e) => {
+                    e.stopPropagation();
+                    if (!previewRef.current?.isTextDragging) return;
+                    
+                    // 🎯 손가락이 움직인 만큼 정확하게 계산해서 튕김 없이 부드럽게 이동!
+                    const deltaX = e.clientX - previewRef.current.startX;
+                    const deltaY = e.clientY - previewRef.current.startY;
+                    
+                    setTextPos({ 
+                      x: previewRef.current.initTextX + deltaX, 
+                      y: previewRef.current.initTextY + deltaY 
+                    });
+                  }}
+                  onPointerUp={(e) => {
+                    e.stopPropagation();
+                    if (e.target.hasPointerCapture(e.pointerId)) {
+                      e.target.releasePointerCapture(e.pointerId);
+                    }
+                    if (previewRef.current) {
+                      previewRef.current.isTextDragging = false;
+                    }
+                  }}
+                  onPointerCancel={(e) => {
+                    e.stopPropagation();
+                    if (previewRef.current) {
+                      previewRef.current.isTextDragging = false;
+                    }
+                  }}
                   className="absolute cursor-move transition-transform duration-75 active:scale-105 z-20 select-none touch-none"
                   style={{ 
                     top: textPos.y, left: textPos.x, color: textColor,
@@ -809,7 +846,7 @@ export default function GifMakerApp() {
                               setImages(updatedImages); 
                               setSelectedMedia(prev => ({ ...prev, subtitle: newText})); 
                             }} 
-                            className="flex-1 px-2 py-1.5 bg-black/30 border border-white/20 rounded text-white text-xs focus:outline-none focus:border-purple-400" placeholder="이 사진의 자막을 입력하세요..." />
+                            className="flex-1 px-2 py-1.5 bg-black/30 border border-white/20 rounded text-white text-xs focus:outline-none focus:border-purple-400" placeholder="자막을 입력하세요." />
                           <div className="flex items-center gap-1.5 pl-2 border-l border-white/20">
                             <span className="text-gray-300">폰트:</span>
                             <select value={fontFamily} onChange={(e) => setFontFamily(e.target.value)} className="bg-black/50 border border-white/20 rounded px-1 py-1 text-xs text-white focus:outline-none">
