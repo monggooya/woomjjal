@@ -65,7 +65,7 @@ export default function GifMakerApp() {
             const img = new Image();
             img.onload = () => {
               const canvas = document.createElement('canvas');
-              const MAX_SIZE = 600; 
+              const MAX_SIZE = 1200; 
               let width = img.width;
               let height = img.height;
 
@@ -82,7 +82,7 @@ export default function GifMakerApp() {
               const ctx = canvas.getContext('2d');
               ctx.drawImage(img, 0, 0, width, height);
               
-              const optimizedBase64 = canvas.toDataURL('image/jpeg', 0.85);
+              const optimizedBase64 = canvas.toDataURL('image/jpeg', 0.95);
 
               resolve({
                 id: Math.random().toString(36).substr(2, 9),
@@ -887,7 +887,7 @@ export default function GifMakerApp() {
 
                           <div className="flex-1 flex flex-col gap-2 bg-white/5 p-2 rounded-lg border border-white/10">
                             <div className="flex justify-between items-center">
-                              <span className="text-gray-300">투명도</span>
+                              <span className="text-gray-300">불투명도</span>
                               <div className="flex items-center gap-1">
                                 <input type="number" min="10" max="100" value={textOpacity} onChange={(e) => setTextOpacity(Number(e.target.value))} className="w-12 px-1 py-0.5 text-right bg-black/50 border border-white/20 rounded text-white font-mono outline-none focus:border-purple-400" />
                                 <span className="text-gray-400">%</span>
@@ -1058,8 +1058,8 @@ export default function GifMakerApp() {
 
       {/* 📋 [기능 추가] 단정한 저작권 표시 푸터 */}
       <footer className="mt-8 mb-4 text-center text-xs text-gray-400">
-        <p>© 2026 Gif Maker. All rights reserved.</p>
-        <p className="mt-1">Educational & Creative Short-form Tool</p>
+        <p> Gif Maker. Developed by Hyuna Kim</p>
+        <p className="mt-1">Educational Short-form Tool</p>
       </footer>
 
     </div>
