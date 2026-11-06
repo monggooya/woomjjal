@@ -396,21 +396,23 @@ export default function GifMakerApp() {
         ctx.drawImage(img, drawX, drawY, drawW, drawH);
         ctx.restore(); 
 
-        // 4. ✍️ 자막 그리기
+        // 4. ✍️ 자막 그리기 (컷별 독립 속성 적용)
         if (currentImg.subtitle) {
           ctx.save();
-          ctx.globalAlpha = textOpacity / 100;
-          ctx.font = `${isItalic ? 'italic ' : ''}bold ${fontSize * scaleFactor}px ${fontFamily.replace(/['"]/g, '')}`;
+          ctx.globalAlpha = (currentImg.textOpacity ?? 100) / 100;
+          ctx.font = `${currentImg.isItalic ? 'italic ' : ''}bold ${(currentImg.fontSize ?? 40) * scaleFactor}px ${(currentImg.fontFamily || '"Jua", sans-serif').replace(/['"]/g, '')}`;
           ctx.textBaseline = 'top';
           ctx.textAlign = 'left';
 
-          const tx = textPos.x * scaleFactor;
-          const ty = textPos.y * scaleFactor;
+          const curTextPos = currentImg.textPos || { x: 80, y: 150 };
+          const tx = curTextPos.x * scaleFactor;
+          const ty = curTextPos.y * scaleFactor;
+          const curFontSize = currentImg.fontSize ?? 40;
 
-          if (hasBackground) {
+          if (currentImg.hasBackground) {
             const metrics = ctx.measureText(currentImg.subtitle);
-            ctx.fillStyle = bgColor;
-            ctx.fillRect(tx - (5 * scaleFactor), ty - (2 * scaleFactor), metrics.width + (10 * scaleFactor), (fontSize * scaleFactor) + (10 * scaleFactor));
+            ctx.fillStyle = currentImg.bgColor || '#000000';
+            ctx.fillRect(tx - (5 * scaleFactor), ty - (2 * scaleFactor), metrics.width + (10 * scaleFactor), (curFontSize * scaleFactor) + (10 * scaleFactor));
           }
 
           ctx.shadowColor = 'transparent';
@@ -418,30 +420,29 @@ export default function GifMakerApp() {
           ctx.shadowOffsetX = 0;
           ctx.shadowOffsetY = 0;
 
-          if (hasShadow) {
+          if (currentImg.hasShadow ?? true) {
             ctx.shadowColor = 'rgba(0,0,0,0.5)';
             ctx.shadowBlur = 4 * scaleFactor;
             ctx.shadowOffsetX = 2 * scaleFactor;
             ctx.shadowOffsetY = 2 * scaleFactor;
           }
 
-          if (hasStroke) {
+          if (currentImg.hasStroke ?? true) {
             ctx.shadowColor = 'transparent'; 
-            ctx.strokeStyle = strokeColor;
-            ctx.lineWidth = (strokeWidth * 2); 
+            ctx.strokeStyle = currentImg.strokeColor || '#000000';
+            ctx.lineWidth = ((currentImg.strokeWidth ?? 2) * 2); 
             ctx.strokeText(currentImg.subtitle, tx, ty);
             
-            if (hasShadow) {
+            if (currentImg.hasShadow ?? true) {
               ctx.shadowColor = 'rgba(0,0,0,0.5)';
             }
           }
 
-          ctx.fillStyle = textColor;
+          ctx.fillStyle = currentImg.textColor || '#ffffff';
           ctx.fillText(currentImg.subtitle, tx, ty);
 
           ctx.restore();
         }
-
         gif.addFrame(ctx, { delay: currentImg.duration * 1000, copy: true });
         await new Promise(resolve => setTimeout(resolve, 100)); 
       }
@@ -733,48 +734,55 @@ export default function GifMakerApp() {
           >
             {selectedMedia ? (
               <>
-                <div className="absolute inset-0 pointer-events-none z-10 opacity-25" style={{ display: selectedMedia.noise > 0 ? 'block' : 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`, filter: `contrast(${100 + selectedMedia.noise * 8}%)` }} />
+                <div className="absolute inset-0 pointer-events-none z-10 opacity-25" style={{ display: (selectedMedia.noise || 0) > 0 ? 'block' : 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`, filter: `contrast(${100 + (selectedMedia.noise || 0)}%)` }} />
 
                 <div 
-                  className="w-full h-full overflow-hidden flex items-start justify-start relative pointer-events-none"
-                  style={{ touchAction: 'none' }} 
+                className="w-full h-full overflow-hidden flex items-center justify-center relative pointer-events-none"
+                style={{ touchAction: 'none' }} 
+              >
+                <div
+                  className="absolute pointer-events-none flex items-center justify-center"
+                  style={{
+                    // 👇 핵심: 캔버스 전체를 짓누르지 않고, 크롭된 비율만 유지하면서 넉넉하게 표시!
+                    width: '100%', 
+                    height: '100%', 
+                    transform: `translate(${selectedMedia.imgPos?.x || 0}px, ${selectedMedia.imgPos?.y || 0}px) scale(${selectedMedia.scale || 1})`,
+                    transformOrigin: 'center'
+                  }}
                 >
-                  <div
-                    className="absolute pointer-events-none"
-                    style={{
-                      width: '100%', height: '100%', left: 0, top: 0,
-                      transform: `translate(${selectedMedia.imgPos?.x || 0}px, ${selectedMedia.imgPos?.y || 0}px) scale(${selectedMedia.scale || 1})`,
-                      transformOrigin: 'center'
-                    }}
-                  >
-                    {selectedMedia.type === 'video' ? (
-                      <video 
-                        src={selectedMedia.url} autoPlay loop muted playsInline 
-                        draggable={false} 
-                        style={{ 
-                          width: '100%', height: '100%', objectFit: 'contain',
-                          pointerEvents: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', WebkitUserDrag: 'none', userSelect: 'none', touchAction: 'none',
-                          // 🎯 수치가 없을 때 기본값(100%)을 안전하게 잡아주어 GPU 뇌정지 방지
-                          filter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast ?? 100}%) brightness(${selectedMedia.brightness ?? 100}%) saturate(${selectedMedia.saturate ?? 100}%)`,
-                          WebkitBackfaceVisibility: 'hidden', // 💡 GPU 강제 가속 켜서 하얘짐 방지!
-                          transform: 'translateZ(0)'
-                        }}
-                      />
-                    ) : (
-                      <img 
-                        src={selectedMedia.url} draggable={false} 
-                        style={{ 
-                          width: '100%', height: '100%', objectFit: 'contain',
-                          pointerEvents: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', WebkitUserDrag: 'none', userSelect: 'none', touchAction: 'none',
-                          // 🎯 수치가 없을 때 기본값(100%) 안전 방어
-                          filter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast ?? 100}%) brightness(${selectedMedia.brightness ?? 100}%) saturate(${selectedMedia.saturate ?? 100}%)`,
-                          WebkitBackfaceVisibility: 'hidden', // 💡 GPU 강제 가속 켜서 하얘짐 방지!
-                          transform: 'translateZ(0)'
-                        }} 
-                      />
-                    )}
-                  </div>
+                  {selectedMedia.type === 'video' ? (
+                    <video 
+                      src={selectedMedia.url} autoPlay loop muted playsInline 
+                      draggable={false} 
+                      style={{ 
+                        maxWidth: '100%', 
+                        maxHeight: '100%', 
+                        objectFit: 'contain', // 💡 찌그러짐 방지하면서 꽉 채우기
+                        // 만약 크롭된 비율이 있다면 아래처럼 aspect-ratio를 적용해 줄 수 있어!
+                        aspectRatio: selectedMedia.cropRatio ? `${selectedMedia.cropRatio.w} / ${selectedMedia.cropRatio.h}` : 'auto',
+                        pointerEvents: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', WebkitUserDrag: 'none', userSelect: 'none', touchAction: 'none',
+                        filter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast ?? 100}%) brightness(${selectedMedia.brightness ?? 100}%) saturate(${selectedMedia.saturate ?? 100}%)`,
+                        WebkitBackfaceVisibility: 'hidden',
+                        transform: 'translateZ(0)'
+                      }}
+                    />
+                  ) : (
+                    <img 
+                      src={selectedMedia.url} draggable={false} 
+                      style={{ 
+                        maxWidth: '100%', 
+                        maxHeight: '100%', 
+                        objectFit: 'contain', 
+                        aspectRatio: selectedMedia.cropRatio ? `${selectedMedia.cropRatio.w} / ${selectedMedia.cropRatio.h}` : 'auto',
+                        pointerEvents: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', WebkitUserDrag: 'none', userSelect: 'none', touchAction: 'none',
+                        filter: `blur(${selectedMedia.blur || 0}px) contrast(${selectedMedia.contrast ?? 100}%) brightness(${selectedMedia.brightness ?? 100}%) saturate(${selectedMedia.saturate ?? 100}%)`,
+                        WebkitBackfaceVisibility: 'hidden',
+                        transform: 'translateZ(0)'
+                      }} 
+                    />
+                  )}
                 </div>
+              </div>
                 
                 {/* ✍️ 화면 미리보기 자막 (튕김 현상 완벽 방어 버전) */}
                 <div 
@@ -845,113 +853,159 @@ export default function GifMakerApp() {
                 </div>
 
                 {selectedMedia && activeTab && (
-                  <div 
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onTouchStart={(e) => e.stopPropagation()}
-                    onMouseMove={(e) => e.stopPropagation()}
-                    onTouchMove={(e) => e.stopPropagation()}
-                    onWheel={(e) => e.stopPropagation()}
-                    className={`absolute left-4 right-4 bg-black/80 backdrop-blur-md rounded-xl p-4 z-30 border border-white/10 flex flex-col gap-3 text-white text-xs max-h-40 overflow-y-auto shadow-2xl transition-all duration-300 ${isPanelTop ? 'top-4' : 'bottom-4'}`}
-                  >
-                    <div className="flex justify-between items-center border-b border-white/10 pb-2">
-                      <span className="font-bold text-purple-300">
-                        {activeTab === 'scale' && '확대'}
-                        {activeTab === 'blur' && '흐림'}
-                        {activeTab === 'brightness' && '명도'}
-                        {activeTab === 'contrast' && '대비'}
-                        {activeTab === 'saturate' && '채도'}
-                        {activeTab === 'noise' && '노이즈'}
-                        {activeTab === 'text' && '자막 설정'}
-                      </span>
-                      <div className="flex gap-2">
-                        <button type="button" onClick={() => setIsPanelTop(!isPanelTop)} className="bg-white/10 hover:bg-white/20 px-2 py-0.5 rounded font-bold text-sm transition-colors">
-                          {isPanelTop ? '아래로' : '위로'}
-                        </button>
-                        <button type="button" onClick={() => setActiveTab(null)} className="bg-white/10 hover:bg-white/20 px-2 py-0.5 rounded font-bold text-sm text-red-300 hover:text-red-100 transition-colors">
-                          ✕
-                        </button>
-                      </div>
-                    </div>
+                  <>
+                    {/* 1. 패널 바깥 클릭/터치 시 닫히는 투명 배경 오버레이 */}
+                    <div 
+                      className="absolute inset-0 z-20"
+                      onPointerDown={(e) => {
+                        e.stopPropagation();
+                        setActiveTab(null);
+                      }}
+                    />
 
-                    {activeTab !== 'text' && (
-                      <div className="flex items-center gap-4 w-full">
-                      <input 
-                        type="range" 
-                        min={activeTab === 'scale' ? "0.1" : activeTab === 'contrast' || activeTab === 'brightness' ? "50" : "0"} 
-                        max={activeTab === 'scale' ? "4" : activeTab === 'contrast' || activeTab === 'brightness' ? "150" : activeTab === 'saturate' ? "200" : activeTab === 'blur' ? "4" : "10"} 
-                        step={activeTab === 'scale' || activeTab === 'blur' ? "0.1" : "1"} 
-                        value={selectedMedia[activeTab] || ""} 
-                        className="w-full accent-purple-400 cursor-pointer h-1.5 bg-white/20 rounded-lg appearance-none"
-                        onChange={(e) => { 
-                          const numValue = Number(e.target.value);
-                          const updatedMedia = { ...selectedMedia, [activeTab]: numValue };
-                          setSelectedMedia(updatedMedia); 
-                          setImages(prev => prev.map(img => img.id === updatedMedia.id ? updatedMedia : img)); 
-                        }} 
-                      />
-                        <span className="w-12 text-right font-mono">{selectedMedia[activeTab]}{activeTab === 'scale' ? '배' : activeTab === 'blur' ? 'px' : activeTab === 'noise' ? '단' : '%'}</span>
-                      </div>
-                    )}
-
-                    {activeTab === 'text' && (
-                      <div className="flex flex-col gap-3 w-full mt-2">
-                        <div className="flex flex-wrap gap-2 items-center justify-between bg-white/5 p-2 rounded-lg border border-white/10">
-                          <input type="text" value={selectedMedia?.subtitle || ""} 
-                            onClick={(e) => e.stopPropagation()} 
-                            onTouchStart={(e) => e.stopPropagation()} 
-                            onChange={(e) => { 
-                              const newText = e.target.value; setText(newText); 
-                              const updatedImages = images.map(img => img.id === selectedMedia.id ? { ...img, subtitle: newText } : img); 
-                              setImages(updatedImages); 
-                              setSelectedMedia(prev => ({ ...prev, subtitle: newText})); 
-                            }} 
-                            className="flex-1 px-2 py-1.5 bg-black/30 border border-white/20 rounded text-white text-xs focus:outline-none focus:border-purple-400" placeholder="자막을 입력하세요." />
-                          <div className="flex items-center gap-1.5 pl-2 border-l border-white/20">
-                            <span className="text-gray-300">폰트:</span>
-                            <select 
-                              value={selectedMedia?.fontFamily || '"Jua", sans-serif'} 
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                const updated = { ...selectedMedia, fontFamily: val };
-                                setSelectedMedia(updated);
-                                setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
-                              }} 
-                              className="bg-black/50 border border-white/20 rounded px-1 py-1 text-xs text-white focus:outline-none"
-                            >
-                              <option value='"JoseonGulim", sans-serif'>조선굴림체</option>
-                              <option value='"Hangyore", sans-serif'>한겨레결체</option>
-                              <option value='"Iropke Batang", serif'>이롭게 바탕체</option>
-                              <option value='"Gowun Dodum", sans-serif'>단정한 고운돋움</option>
-                              <option value='"Jua", sans-serif'>레트로 간판(주아)</option>
-                              <option value='"Hi Melody", cursive'>삐뚤빼뚤 손글씨</option>
-                              <option value='"Dongle", sans-serif'>귀여운 동글</option>
-                              <option value='"Libre Baskerville", serif'>바스커빌체</option>
-                              <option value='"Open Sans", sans-serif'>오픈산스체</option>
-                            </select>
-                          </div>
-                          <div className="flex items-center gap-1.5 pl-2 border-l border-white/20">
-                            <span className="text-gray-300">색상:</span>
-                            <input 
-                              type="color" 
-                              value={selectedMedia?.textColor || '#ffffff'} 
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                const updated = { ...selectedMedia, textColor: val };
-                                setSelectedMedia(updated);
-                                setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
-                              }} 
-                              className="w-5 h-5 cursor-pointer bg-transparent border-0" 
-                            />
-                          </div>
+                    {/* 2. 고정 헤더 + 스크롤 본문 패널 */}
+                    <div 
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onTouchStart={(e) => e.stopPropagation()}
+                      onMouseMove={(e) => e.stopPropagation()}
+                      onTouchMove={(e) => e.stopPropagation()}
+                      onWheel={(e) => e.stopPropagation()}
+                      className={`absolute left-4 right-4 bg-black/85 backdrop-blur-md rounded-xl p-3 z-30 border border-white/10 flex flex-col max-h-44 shadow-2xl transition-all duration-300 ${isPanelTop ? 'top-4' : 'bottom-4'}`}
+                    >
+                      {/* 📌 [상단 고정] 스크롤 내려도 항상 제자리에 고정되는 헤더 바 */}
+                      <div className="flex justify-between items-center border-b border-white/10 pb-2 flex-shrink-0">
+                        <span className="font-bold text-purple-300 text-xs">
+                          {activeTab === 'scale' && '확대'}
+                          {activeTab === 'blur' && '흐림'}
+                          {activeTab === 'brightness' && '명도'}
+                          {activeTab === 'contrast' && '대비'}
+                          {activeTab === 'saturate' && '채도'}
+                          {activeTab === 'noise' && '노이즈'}
+                          {activeTab === 'text' && '자막 설정'}
+                        </span>
+                        <div className="flex gap-2">
+                          <button 
+                            type="button" 
+                            onClick={() => setIsPanelTop(!isPanelTop)} 
+                            className="bg-white/10 hover:bg-white/20 px-2 py-0.5 rounded font-bold text-xs text-white transition-colors"
+                          >
+                            {isPanelTop ? '아래로' : '위로'}
+                          </button>
+                          <button 
+                            type="button" 
+                            onClick={() => setActiveTab(null)} 
+                            className="bg-red-500/20 hover:bg-red-500/40 px-2 py-0.5 rounded font-bold text-xs text-red-300 hover:text-red-100 transition-colors"
+                          >
+                            ✕
+                          </button>
                         </div>
+                      </div>
 
-                        <div className="flex gap-3">
-                          <div className="flex-1 flex flex-col gap-2 bg-white/5 p-2 rounded-lg border border-white/10">
-                            <div className="flex justify-between items-center">
-                              <span className="text-gray-300">글자 크기</span>
-                              <div className="flex items-center gap-1">
+                      {/* 📜 [내부 스크롤] 컨트롤 요소들만 안쪽에서 스크롤됨 */}
+                      <div className="overflow-y-auto flex-1 mt-2 pr-1 flex flex-col gap-3 text-white text-xs">
+                        {activeTab !== 'text' && (
+                          <div className="flex items-center gap-4 w-full py-1">
+                            <input 
+                              type="range" 
+                              min={activeTab === 'scale' ? "0.1" : activeTab === 'contrast' || activeTab === 'brightness' ? "50" : "0"} 
+                              max={activeTab === 'scale' ? "4" : activeTab === 'contrast' || activeTab === 'brightness' ? "150" : activeTab === 'saturate' ? "200" : activeTab === 'blur' ? "4" : "10"} 
+                              step={activeTab === 'scale' || activeTab === 'blur' ? "0.1" : "1"} 
+                              value={selectedMedia[activeTab] || ""} 
+                              className="w-full accent-purple-400 cursor-pointer h-1.5 bg-white/20 rounded-lg appearance-none"
+                              onChange={(e) => { 
+                                const numValue = Number(e.target.value);
+                                const updatedMedia = { ...selectedMedia, [activeTab]: numValue };
+                                setSelectedMedia(updatedMedia); 
+                                setImages(prev => prev.map(img => img.id === updatedMedia.id ? updatedMedia : img)); 
+                              }} 
+                            />
+                            <span className="w-12 text-right font-mono">
+                              {selectedMedia[activeTab]}
+                              {activeTab === 'scale' ? '배' : activeTab === 'blur' ? 'px' : activeTab === 'noise' ? '단' : '%'}
+                            </span>
+                          </div>
+                        )}
+
+                        {activeTab === 'text' && (
+                          <div className="flex flex-col gap-3 w-full">
+                            <div className="flex flex-wrap gap-2 items-center justify-between bg-white/5 p-2 rounded-lg border border-white/10">
+                              <input 
+                                type="text" 
+                                value={selectedMedia?.subtitle || ""} 
+                                onClick={(e) => e.stopPropagation()} 
+                                onTouchStart={(e) => e.stopPropagation()} 
+                                onChange={(e) => { 
+                                  const newText = e.target.value; 
+                                  const updatedMedia = { ...selectedMedia, subtitle: newText };
+                                  setSelectedMedia(updatedMedia);
+                                  setImages(prev => prev.map(img => img.id === updatedMedia.id ? updatedMedia : img)); 
+                                }} 
+                                className="flex-1 px-2 py-1.5 bg-black/30 border border-white/20 rounded text-white text-xs focus:outline-none focus:border-purple-400" 
+                                placeholder="자막을 입력하세요." 
+                              />
+                              <div className="flex items-center gap-1.5 pl-2 border-l border-white/20">
+                                <span className="text-gray-300">폰트:</span>
+                                <select 
+                                  value={selectedMedia?.fontFamily || '"Jua", sans-serif'} 
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    const updated = { ...selectedMedia, fontFamily: val };
+                                    setSelectedMedia(updated);
+                                    setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
+                                  }} 
+                                  className="bg-black/50 border border-white/20 rounded px-1 py-1 text-xs text-white focus:outline-none"
+                                >
+                                  <option value='"JoseonGulim", sans-serif'>조선굴림체</option>
+                                  <option value='"Hangyore", sans-serif'>한겨레결체</option>
+                                  <option value='"Iropke Batang", serif'>이롭게 바탕체</option>
+                                  <option value='"Gowun Dodum", sans-serif'>단정한 고운돋움</option>
+                                  <option value='"Jua", sans-serif'>레트로 간판(주아)</option>
+                                  <option value='"Hi Melody", cursive'>삐뚤빼뚤 손글씨</option>
+                                  <option value='"Dongle", sans-serif'>귀여운 동글</option>
+                                  <option value='"Libre Baskerville", serif'>바스커빌체</option>
+                                  <option value='"Open Sans", sans-serif'>오픈산스체</option>
+                                </select>
+                              </div>
+                              <div className="flex items-center gap-1.5 pl-2 border-l border-white/20">
+                                <span className="text-gray-300">색상:</span>
                                 <input 
-                                  type="number" 
+                                  type="color" 
+                                  value={selectedMedia?.textColor || '#ffffff'} 
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    const updated = { ...selectedMedia, textColor: val };
+                                    setSelectedMedia(updated);
+                                    setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
+                                  }} 
+                                  className="w-5 h-5 cursor-pointer bg-transparent border-0" 
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex gap-3">
+                              <div className="flex-1 flex flex-col gap-2 bg-white/5 p-2 rounded-lg border border-white/10">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-gray-300">글자 크기</span>
+                                  <div className="flex items-center gap-1">
+                                    <input 
+                                      type="number" 
+                                      min="20" 
+                                      max="100" 
+                                      value={selectedMedia?.fontSize ?? 40} 
+                                      onChange={(e) => {
+                                        const val = Number(e.target.value);
+                                        const updated = { ...selectedMedia, fontSize: val };
+                                        setSelectedMedia(updated);
+                                        setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
+                                      }} 
+                                      className="w-12 px-1 py-0.5 text-right bg-black/50 border border-white/20 rounded text-white font-mono outline-none focus:border-purple-400" 
+                                    />
+                                    <span className="text-gray-400">px</span>
+                                  </div>
+                                </div>
+                                <input 
+                                  type="range" 
                                   min="20" 
                                   max="100" 
                                   value={selectedMedia?.fontSize ?? 40} 
@@ -961,113 +1015,157 @@ export default function GifMakerApp() {
                                     setSelectedMedia(updated);
                                     setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
                                   }} 
-                                  className="w-12 px-1 py-0.5 text-right bg-black/50 border border-white/20 rounded text-white font-mono outline-none focus:border-purple-400" 
+                                  className="w-full accent-purple-400 cursor-pointer" 
                                 />
-                                <span className="text-gray-400">px</span>
+                              </div>
+
+                              <div className="flex-1 flex flex-col gap-2 bg-white/5 p-2 rounded-lg border border-white/10">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-gray-300">불투명도</span>
+                                  <div className="flex items-center gap-1">
+                                    <input 
+                                      type="number" 
+                                      min="10" 
+                                      max="100" 
+                                      value={selectedMedia?.textOpacity ?? 100} 
+                                      onChange={(e) => {
+                                        const val = Number(e.target.value);
+                                        const updated = { ...selectedMedia, textOpacity: val };
+                                        setSelectedMedia(updated);
+                                        setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
+                                      }} 
+                                      className="w-12 px-1 py-0.5 text-right bg-black/50 border border-white/20 rounded text-white font-mono outline-none focus:border-purple-400" 
+                                    />
+                                    <span className="text-gray-400">%</span>
+                                  </div>
+                                </div>
+                                <input 
+                                  type="range" 
+                                  min="10" 
+                                  max="100" 
+                                  value={selectedMedia?.textOpacity ?? 100} 
+                                  onChange={(e) => {
+                                    const val = Number(e.target.value);
+                                    const updated = { ...selectedMedia, textOpacity: val };
+                                    setSelectedMedia(updated);
+                                    setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
+                                  }} 
+                                  className="w-full accent-purple-400 cursor-pointer" 
+                                />
                               </div>
                             </div>
-                            <input 
-                              type="range" 
-                              min="20" 
-                              max="100" 
-                              value={selectedMedia?.fontSize ?? 40} 
-                              onChange={(e) => {
-                                const val = Number(e.target.value);
-                                const updated = { ...selectedMedia, fontSize: val };
-                                setSelectedMedia(updated);
-                                setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
-                              }} 
-                              className="w-full accent-purple-400 cursor-pointer" 
-                            />
-                          </div>
 
-                          <div className="flex-1 flex flex-col gap-2 bg-white/5 p-2 rounded-lg border border-white/10">
-                            <div className="flex justify-between items-center">
-                              <span className="text-gray-300">불투명도</span>
-                              <div className="flex items-center gap-1">
-                                <input type="number" min="10" max="100" value={selectedMedia?.textOpacity ?? 100} onChange={(e) => {
-                                  const val = Number(e.target.value);
-                                  const updated = { ...selectedMedia, textOpacity: val };
-                                  setSelectedMedia(updated);
-                                  setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
-                                }} className="..." />
-                                <span className="text-gray-400">%</span>
+                            <div className="flex flex-wrap gap-4 items-center bg-white/5 p-2 rounded-lg border border-white/10">
+                              <label className="flex items-center gap-1.5 cursor-pointer">
+                                <input 
+                                  type="checkbox" 
+                                  checked={selectedMedia?.hasBackground ?? false} 
+                                  onChange={(e) => {
+                                    const val = e.target.checked;
+                                    const updated = { ...selectedMedia, hasBackground: val };
+                                    setSelectedMedia(updated);
+                                    setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
+                                  }} 
+                                  className="rounded accent-purple-500 w-3 h-3" 
+                                />
+                                <span className={selectedMedia?.hasBackground ? 'text-white font-bold' : 'text-gray-400'}>배경색 추가</span>
+                              </label>
+                              <div className="w-6 h-6 flex items-center justify-center">
+                                {selectedMedia?.hasBackground ? (
+                                  <input 
+                                    type="color" 
+                                    value={selectedMedia?.bgColor || '#000000'} 
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      const updated = { ...selectedMedia, bgColor: val };
+                                      setSelectedMedia(updated);
+                                      setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
+                                    }} 
+                                    className="w-5 h-5 cursor-pointer bg-transparent border-0" 
+                                  />
+                                ) : (
+                                  <div className="w-5 h-5" />
+                                )}
                               </div>
+                              <label className="flex items-center gap-1.5 cursor-pointer">
+                                <input 
+                                  type="checkbox" 
+                                  checked={selectedMedia?.hasStroke ?? true} 
+                                  onChange={(e) => {
+                                    const val = e.target.checked;
+                                    const updated = { ...selectedMedia, hasStroke: val };
+                                    setSelectedMedia(updated);
+                                    setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
+                                  }} 
+                                  className="rounded accent-purple-500 w-3 h-3" 
+                                />
+                                <span className={selectedMedia?.hasStroke ? 'text-white font-bold' : 'text-gray-400'}>테두리</span>
+                              </label>
+                              {selectedMedia?.hasStroke && (
+                                <div className="flex items-center gap-2 pl-2 border-l border-white/20">
+                                  <input 
+                                    type="color" 
+                                    value={selectedMedia?.strokeColor || '#000000'} 
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      const updated = { ...selectedMedia, strokeColor: val };
+                                      setSelectedMedia(updated);
+                                      setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
+                                    }} 
+                                    className="w-5 h-5 cursor-pointer bg-transparent border-0" 
+                                  />
+                                  <input 
+                                    type="number" 
+                                    min="0" 
+                                    max="10" 
+                                    step="0.1" 
+                                    value={selectedMedia?.strokeWidth ?? 2} 
+                                    onChange={(e) => {
+                                      const val = Number(e.target.value);
+                                      const updated = { ...selectedMedia, strokeWidth: val };
+                                      setSelectedMedia(updated);
+                                      setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
+                                    }} 
+                                    className="w-12 px-1 py-0.5 text-right bg-black/50 border border-white/20 rounded text-white font-mono outline-none focus:border-purple-400" 
+                                  />
+                                  <span className="text-[10px] text-gray-400">px</span>
+                                </div>
+                              )}
+                              <div className="flex-1"></div>
+                              <label className="flex items-center gap-1.5 cursor-pointer pl-3 border-l border-white/20">
+                                <input 
+                                  type="checkbox" 
+                                  checked={selectedMedia?.hasShadow ?? true} 
+                                  onChange={(e) => {
+                                    const val = e.target.checked;
+                                    const updated = { ...selectedMedia, hasShadow: val };
+                                    setSelectedMedia(updated);
+                                    setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
+                                  }} 
+                                  className="rounded accent-purple-500 w-3 h-3" 
+                                />
+                                <span className={selectedMedia?.hasShadow ? 'text-white font-bold' : 'text-gray-400'}>그림자</span>
+                              </label>
+                              <label className="flex items-center gap-1.5 cursor-pointer pl-3 border-l border-white/20">
+                                <input 
+                                  type="checkbox" 
+                                  checked={selectedMedia?.isItalic ?? false} 
+                                  onChange={(e) => {
+                                    const val = e.target.checked;
+                                    const updated = { ...selectedMedia, isItalic: val };
+                                    setSelectedMedia(updated);
+                                    setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
+                                  }} 
+                                  className="rounded accent-purple-500 w-3 h-3" 
+                                />
+                                <span className={selectedMedia?.isItalic ? 'text-white font-bold' : 'text-gray-400'}>기울임</span>
+                              </label>
                             </div>
-                            <input type="range" min="10" max="100" value={selectedMedia?.textOpacity ?? 100} onChange={(e) => {
-                              const val = Number(e.target.value);
-                              const updated = { ...selectedMedia, textOpacity: val };
-                              setSelectedMedia(updated);
-                              setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
-                            }} className="..." />
                           </div>
-                          </div>
-
-                          <div className="flex flex-wrap gap-4 items-center bg-white/5 p-2 rounded-lg border border-white/10">
-                            <label className="flex items-center gap-1.5 cursor-pointer">
-                              <input type="checkbox" checked={selectedMedia?.hasBackground ?? false} onChange={(e) => {
-                                const val = e.target.checked;
-                                const updated = { ...selectedMedia, hasBackground: val };
-                                setSelectedMedia(updated);
-                                setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
-                              }} className="..." />
-                              <span className={selectedMedia?.hasBackground ? 'text-white font-bold' : 'text-gray-400'}>배경색 추가</span>
-                            </label>
-                            {selectedMedia?.hasBackground && <input type="color" value={selectedMedia?.bgColor || '#000000'} onChange={(e) => {
-                              const val = e.target.value;
-                              const updated = { ...selectedMedia, bgColor: val };
-                              setSelectedMedia(updated);
-                              setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
-                            }} className="..." />}
-                            <label className="flex items-center gap-1.5 cursor-pointer">
-                              <input type="checkbox" checked={selectedMedia?.hasStroke ?? true} onChange={(e) => {
-                                const val = e.target.checked;
-                                const updated = { ...selectedMedia, hasStroke: val };
-                                setSelectedMedia(updated);
-                                setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
-                              }} className="..." />
-                              <span className={selectedMedia?.hasStroke ? 'text-white font-bold' : 'text-gray-400'}>테두리</span>
-                            </label>
-                            {selectedMedia?.hasStroke && (
-                              <div className="flex items-center gap-2 pl-2 border-l border-white/20">
-                                <input type="color" value={selectedMedia?.strokeColor || '#000000'} onChange={(e) => {
-                                  const val = e.target.value;
-                                  const updated = { ...selectedMedia, strokeWidth: val }; // 또는 strokeColor
-                                  setSelectedMedia(updated);
-                                  setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
-                                }} className="..." />
-                                <input type="number" min="0" max="10" step="0.1" value={selectedMedia?.strokeWidth ?? 2} onChange={(e) => {
-                                  const val = Number(e.target.value);
-                                  const updated = { ...selectedMedia, strokeWidth: val };
-                                  setSelectedMedia(updated);
-                                  setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
-                                }} className="..." />
-                                <span className="text-[10px] text-gray-400">px</span>
-                              </div>
-                            )}
-                            <div className="flex-1"></div>
-                            <label className="flex items-center gap-1.5 cursor-pointer pl-3 border-l border-white/20">
-                              <input type="checkbox" checked={selectedMedia?.hasShadow ?? true} onChange={(e) => {
-                                const val = e.target.checked;
-                                const updated = { ...selectedMedia, hasShadow: val };
-                                setSelectedMedia(updated);
-                                setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
-                              }} className="..." />
-                              <span className={selectedMedia?.hasShadow ? 'text-white font-bold' : 'text-gray-400'}>그림자</span>
-                            </label>
-                            <label className="flex items-center gap-1.5 cursor-pointer pl-3 border-l border-white/20">
-                              <input type="checkbox" checked={selectedMedia?.isItalic ?? false} onChange={(e) => {
-                                const val = e.target.checked;
-                                const updated = { ...selectedMedia, isItalic: val };
-                                setSelectedMedia(updated);
-                                setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
-                              }} className="..." />
-                              <span className={selectedMedia?.isItalic ? 'text-white font-bold' : 'text-gray-400'}>기울임</span>
-                            </label>
-                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  </>
                 )}
 
                 {isCropMode && (
