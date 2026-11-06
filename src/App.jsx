@@ -56,8 +56,22 @@ export default function GifMakerApp() {
           resolve({
             id: Math.random().toString(36).substr(2, 9),
             url: URL.createObjectURL(file), 
-            type: 'video', duration: 0.5, subtitle: "", scale: 1, imgPos: { x: 0, y: 0 },
-            blur: 0, contrast: 100, brightness: 100, saturate: 100, noise: 0
+            type: 'video', duration: 0.5, scale: 1, imgPos: { x: 0, y: 0 },
+            blur: 0, contrast: 100, brightness: 100, saturate: 100, noise: 0,
+            // 🎯 [추가] 컷별 독립 자막 설정 기본값
+            subtitle: "",
+            textPos: { x: 80, y: 150 },
+            textColor: '#ffffff',
+            fontFamily: '"Jua", sans-serif',
+            strokeColor: '#000000',
+            strokeWidth: 2,
+            fontSize: 40,
+            textOpacity: 100,
+            hasBackground: false,
+            bgColor: '#000000',
+            hasStroke: true,
+            hasShadow: true,
+            isItalic: false
           });
         } else {
           const reader = new FileReader();
@@ -85,11 +99,32 @@ export default function GifMakerApp() {
               const optimizedBase64 = canvas.toDataURL('image/jpeg', 0.95);
 
               resolve({
-                id: Math.random().toString(36).substr(2, 9),
-                url: optimizedBase64,
-                type: 'image', duration: 0.5, subtitle: "", scale: 1, imgPos: { x: 0, y: 0 },
-                blur: 0, contrast: 100, brightness: 100, saturate: 100, noise: 0
-              });
+              id: Math.random().toString(36).substr(2, 9),
+              url: optimizedBase64,
+              type: 'image', 
+              duration: 0.5, 
+              scale: 1, 
+              imgPos: { x: 0, y: 0 },
+              blur: 0, 
+              contrast: 100, 
+              brightness: 100, 
+              saturate: 100, 
+              noise: 0,
+              // 👇 컷별 독립 자막 설정 기본값 추가
+              subtitle: "",
+              textPos: { x: 80, y: 150 },
+              textColor: '#ffffff',
+              fontFamily: '"Jua", sans-serif',
+              strokeColor: '#000000',
+              strokeWidth: 2,
+              fontSize: 40,
+              textOpacity: 100,
+              hasBackground: false,
+              bgColor: '#000000',
+              hasStroke: true,
+              hasShadow: true,
+              isItalic: false
+            });
             };
             img.src = event.target.result;
           };
@@ -525,12 +560,25 @@ export default function GifMakerApp() {
                 <div key={img.id} className="flex items-center gap-3 flex-shrink-0">
                   <div className="flex flex-col items-center gap-2">
                     <div 
-                      data-index={index} 
-                      onClick={() => {
-                        setSelectedMedia(img);
-                        setText(img.subtitle || ""); 
-                      }}
-                      draggable 
+                    data-index={index} 
+                    onClick={() => {
+                      setSelectedMedia(img);
+                      // 🎯 [수정] 컷을 바꿀 때 해당 컷의 개별 자막 설정값들을 화면 상태에 동기화!
+                      setText(img.subtitle || ""); 
+                      setFontSize(img.fontSize ?? 40);
+                      setTextColor(img.textColor || '#ffffff');
+                      setFontFamily(img.fontFamily || '"Jua", sans-serif');
+                      setStrokeColor(img.strokeColor || '#000000');
+                      setStrokeWidth(img.strokeWidth ?? 2);
+                      setTextOpacity(img.textOpacity ?? 100);
+                      setHasBackground(img.hasBackground ?? false);
+                      setBgColor(img.bgColor || '#000000');
+                      setHasStroke(img.hasStroke ?? true);
+                      setHasShadow(img.hasShadow ?? true);
+                      setIsItalic(img.isItalic ?? false);
+                      setTextPos(img.textPos || { x: 80, y: 150 });
+                    }}
+                    draggable
                       onDragStart={(e) => (dragItem.current = index)}
                       onDragEnter={(e) => (dragOverItem.current = index)}
                       onDragEnd={handleSort}
@@ -735,24 +783,26 @@ export default function GifMakerApp() {
                     e.stopPropagation();
                     e.target.setPointerCapture(e.pointerId);
                     previewRef.current.isTextDragging = true;
-                    // 🎯 손가락이 처음 닿은 화면 좌표와 당시 자막의 위치를 정확히 기억!
                     previewRef.current.startX = e.clientX;
                     previewRef.current.startY = e.clientY;
-                    previewRef.current.initTextX = textPos.x; 
-                    previewRef.current.initTextY = textPos.y;
+                    previewRef.current.initTextX = selectedMedia?.textPos?.x ?? 80; 
+                    previewRef.current.initTextY = selectedMedia?.textPos?.y ?? 150;
                   }}
                   onPointerMove={(e) => {
                     e.stopPropagation();
                     if (!previewRef.current?.isTextDragging) return;
-                    
-                    // 🎯 손가락이 움직인 만큼 정확하게 계산해서 튕김 없이 부드럽게 이동!
+
                     const deltaX = e.clientX - previewRef.current.startX;
                     const deltaY = e.clientY - previewRef.current.startY;
-                    
-                    setTextPos({ 
-                      x: previewRef.current.initTextX + deltaX, 
-                      y: previewRef.current.initTextY + deltaY 
-                    });
+                    const newX = previewRef.current.initTextX + deltaX;
+                    const newY = previewRef.current.initTextY + deltaY;
+
+                    setTextPos({ x: newX, y: newY });
+                    if (selectedMedia) {
+                      const updated = { ...selectedMedia, textPos: { x: newX, y: newY } };
+                      setSelectedMedia(updated);
+                      setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
+                    }
                   }}
                   onPointerUp={(e) => {
                     e.stopPropagation();
@@ -771,15 +821,18 @@ export default function GifMakerApp() {
                   }}
                   className="absolute cursor-move transition-transform duration-75 active:scale-105 z-20 select-none touch-none"
                   style={{ 
-                    top: textPos.y, left: textPos.x, color: textColor,
-                    fontFamily: fontFamily, fontSize: `${fontSize}px`, 
-                    fontStyle: isItalic ? 'italic' : 'normal',
-                    opacity: textOpacity / 100,
-                    WebkitTextStroke: hasStroke ? `${strokeWidth}px ${strokeColor}` : '0px transparent',
+                    top: (selectedMedia?.textPos?.y ?? 150), 
+                    left: (selectedMedia?.textPos?.x ?? 80), 
+                    color: selectedMedia?.textColor || '#ffffff',
+                    fontFamily: selectedMedia?.fontFamily || '"Jua", sans-serif', 
+                    fontSize: `${selectedMedia?.fontSize ?? 40}px`, 
+                    fontStyle: selectedMedia?.isItalic ? 'italic' : 'normal',
+                    opacity: (selectedMedia?.textOpacity ?? 100) / 100,
+                    WebkitTextStroke: selectedMedia?.hasStroke ? `${selectedMedia?.strokeWidth ?? 2}px ${selectedMedia?.strokeColor || '#000000'}` : '0px transparent',
                     paintOrder: 'stroke fill', 
-                    textShadow: hasShadow ? '2px 2px 4px rgba(0,0,0,0.5)' : 'none',
-                    backgroundColor: hasBackground ? bgColor : 'transparent',
-                    padding: hasBackground ? '5px 10px' : '0px',
+                    textShadow: selectedMedia?.hasShadow ? '2px 2px 4px rgba(0,0,0,0.5)' : 'none',
+                    backgroundColor: selectedMedia?.hasBackground ? (selectedMedia?.bgColor || '#000000') : 'transparent',
+                    padding: selectedMedia?.hasBackground ? '5px 10px' : '0px',
                     borderRadius: '4px',
                     userSelect: 'none',
                     WebkitUserSelect: 'none', 
@@ -788,7 +841,8 @@ export default function GifMakerApp() {
                     WebkitTouchCallout: 'none',
                   }}
                 >
-                  {text}
+                  {selectedMedia?.subtitle || ""}
+                </div>
                 </div>
 
                 {selectedMedia && activeTab && (
@@ -878,11 +932,41 @@ export default function GifMakerApp() {
                             <div className="flex justify-between items-center">
                               <span className="text-gray-300">글자 크기</span>
                               <div className="flex items-center gap-1">
-                                <input type="number" min="20" max="100" value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))} className="w-12 px-1 py-0.5 text-right bg-black/50 border border-white/20 rounded text-white font-mono outline-none focus:border-purple-400" />
+                                <input 
+                                  type="number" 
+                                  min="20" 
+                                  max="100" 
+                                  value={fontSize} 
+                                  onChange={(e) => {
+                                    const val = Number(e.target.value);
+                                    setFontSize(val);
+                                    if (selectedMedia) {
+                                      const updated = { ...selectedMedia, fontSize: val };
+                                      setSelectedMedia(updated);
+                                      setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
+                                    }
+                                  }} 
+                                  className="w-12 px-1 py-0.5 text-right bg-black/50 border border-white/20 rounded text-white font-mono outline-none focus:border-purple-400" 
+                                />
                                 <span className="text-gray-400">px</span>
                               </div>
                             </div>
-                            <input type="range" min="20" max="100" value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))} className="w-full accent-purple-400 cursor-pointer" />
+                            <input 
+                              type="range" 
+                              min="20" 
+                              max="100" 
+                              value={fontSize} 
+                              onChange={(e) => {
+                                const val = Number(e.target.value);
+                                setFontSize(val);
+                                if (selectedMedia) {
+                                  const updated = { ...selectedMedia, fontSize: val };
+                                  setSelectedMedia(updated);
+                                  setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
+                                }
+                              }} 
+                              className="w-full accent-purple-400 cursor-pointer" 
+                            />
                           </div>
 
                           <div className="flex-1 flex flex-col gap-2 bg-white/5 p-2 rounded-lg border border-white/10">
