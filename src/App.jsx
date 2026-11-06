@@ -843,7 +843,6 @@ export default function GifMakerApp() {
                 >
                   {selectedMedia?.subtitle || ""}
                 </div>
-                </div>
 
                 {selectedMedia && activeTab && (
                   <div 
@@ -909,7 +908,16 @@ export default function GifMakerApp() {
                             className="flex-1 px-2 py-1.5 bg-black/30 border border-white/20 rounded text-white text-xs focus:outline-none focus:border-purple-400" placeholder="자막을 입력하세요." />
                           <div className="flex items-center gap-1.5 pl-2 border-l border-white/20">
                             <span className="text-gray-300">폰트:</span>
-                            <select value={fontFamily} onChange={(e) => setFontFamily(e.target.value)} className="bg-black/50 border border-white/20 rounded px-1 py-1 text-xs text-white focus:outline-none">
+                            <select 
+                              value={selectedMedia?.fontFamily || '"Jua", sans-serif'} 
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                const updated = { ...selectedMedia, fontFamily: val };
+                                setSelectedMedia(updated);
+                                setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
+                              }} 
+                              className="bg-black/50 border border-white/20 rounded px-1 py-1 text-xs text-white focus:outline-none"
+                            >
                               <option value='"JoseonGulim", sans-serif'>조선굴림체</option>
                               <option value='"Hangyore", sans-serif'>한겨레결체</option>
                               <option value='"Iropke Batang", serif'>이롭게 바탕체</option>
@@ -923,7 +931,17 @@ export default function GifMakerApp() {
                           </div>
                           <div className="flex items-center gap-1.5 pl-2 border-l border-white/20">
                             <span className="text-gray-300">색상:</span>
-                            <input type="color" value={textColor} onChange={(e) => setTextColor(e.target.value)} className="w-5 h-5 cursor-pointer bg-transparent border-0" />
+                            <input 
+                              type="color" 
+                              value={selectedMedia?.textColor || '#ffffff'} 
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                const updated = { ...selectedMedia, textColor: val };
+                                setSelectedMedia(updated);
+                                setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
+                              }} 
+                              className="w-5 h-5 cursor-pointer bg-transparent border-0" 
+                            />
                           </div>
                         </div>
 
@@ -936,15 +954,12 @@ export default function GifMakerApp() {
                                   type="number" 
                                   min="20" 
                                   max="100" 
-                                  value={fontSize} 
+                                  value={selectedMedia?.fontSize ?? 40} 
                                   onChange={(e) => {
                                     const val = Number(e.target.value);
-                                    setFontSize(val);
-                                    if (selectedMedia) {
-                                      const updated = { ...selectedMedia, fontSize: val };
-                                      setSelectedMedia(updated);
-                                      setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
-                                    }
+                                    const updated = { ...selectedMedia, fontSize: val };
+                                    setSelectedMedia(updated);
+                                    setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
                                   }} 
                                   className="w-12 px-1 py-0.5 text-right bg-black/50 border border-white/20 rounded text-white font-mono outline-none focus:border-purple-400" 
                                 />
@@ -955,15 +970,12 @@ export default function GifMakerApp() {
                               type="range" 
                               min="20" 
                               max="100" 
-                              value={fontSize} 
+                              value={selectedMedia?.fontSize ?? 40} 
                               onChange={(e) => {
                                 const val = Number(e.target.value);
-                                setFontSize(val);
-                                if (selectedMedia) {
-                                  const updated = { ...selectedMedia, fontSize: val };
-                                  setSelectedMedia(updated);
-                                  setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
-                                }
+                                const updated = { ...selectedMedia, fontSize: val };
+                                setSelectedMedia(updated);
+                                setImages(prev => prev.map(img => img.id === updated.id ? updated : img));
                               }} 
                               className="w-full accent-purple-400 cursor-pointer" 
                             />
